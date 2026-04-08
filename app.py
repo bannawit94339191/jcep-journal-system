@@ -3,22 +3,21 @@ import pandas as pd
 from google.oauth2 import service_account
 import gspread
 import os
-import time
 
-# --- 1. การตั้งค่าพื้นฐานและ CSS ---
+# --- 1. ตั้งค่าพื้นฐานและการตกแต่ง CSS ---
 st.set_page_config(page_title="JCEP Journal System", layout="wide")
 
 st.markdown("""
     <style>
-    /* ปุ่มต่างๆ */
+    /* ปุ่ม Dashboard */
     .stButton>button[kind="primary"] { background-color: #1E3A8A; color: white; border-radius: 8px; border: none; }
     .stButton>button[kind="secondary"] { background-color: #dc3545; color: white; border-radius: 8px; border: none; }
     
-    /* Sidebar และเส้นคั่น */
+    /* Sidebar */
     section[data-testid="stSidebar"] { background-color: #F0F9FF; }
     .sidebar-divider { border-top: 3px solid #000000; margin: 10px 0; }
     
-    /* Footer สีเขียว */
+    /* Footer */
     .footer { 
         position: fixed; left: 0; bottom: 0; width: 100%; 
         background-color: #28a745; color: white; text-align: center; 
@@ -27,13 +26,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. ฟังก์ชัน Popup แจ้งเตือนกลางจอ (Formal Modal) ---
+# --- 2. Popup แจ้งเตือนกลางจอพร้อมปุ่มปิด ---
 @st.dialog("🔔 การแจ้งเตือนจากระบบ")
-def show_message_modal(text, type="success"):
-    if type == "success":
-        st.success(text)
-    else:
-        st.error(text)
+def show_message_modal(text):
+    st.write(text)
     if st.button("ตกลง / ปิดหน้าต่าง"):
         st.rerun()
 
@@ -46,7 +42,7 @@ if "google_auth" in st.secrets:
         spreadsheet = client.open("JCEP_Data")
         sheet = spreadsheet.worksheet("Data_2026")
     except Exception as e:
-        st.error(f"การเชื่อมต่อผิดพลาด: {e}")
+        st.error(f"Error: {e}")
 
 # --- 4. Sidebar ---
 with st.sidebar:
@@ -54,25 +50,4 @@ with st.sidebar:
     page = st.selectbox("เลือกเมนูการใช้งาน:", ["หน้าสำหรับ User", "หน้าสำหรับ Admin"])
     st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
     st.link_button("🏫 มทร.กรุงเทพ (RMUTK)", "https://rmutk.ac.th", use_container_width=True)
-    st.link_button("🏢 สำนักงานสหกิจศึกษา (OCE)", "https://oce.rmutk.ac.th/", use_container_width=True)
-    st.link_button("📘 วารสารสหกิจก้าวหน้า (JCEP)", "https://jcep.rmutk.ac.th/", use_container_width=True)
-
-# --- 5. หน้าสำหรับ User ---
-if page == "หน้าสำหรับ User":
-    if os.path.exists("logo.png"): st.image("logo.png", use_container_width=True)
-    
-    try: next_id = len(sheet.get_all_values())
-    except: next_id = 1
-    
-    with st.form("user_form", clear_on_submit=True):
-        st.info(f"📍 ลำดับที่: {next_id}")
-        f_name = st.text_input("ชื่อ-นามสกุล")
-        phone = st.text_input("เบอร์โทรศัพท์")
-        up_file = st.file_uploader("แนบไฟล์บทความ", type=["pdf", "docx", "doc"])
-        
-        if st.form_submit_button("ส่งข้อมูล", type="primary"):
-            if up_file and f_name:
-                if not os.path.exists("uploaded_journals"): os.makedirs("uploaded_journals")
-                with open(os.path.join("uploaded_journals", up_file.name), "wb") as f:
-                    f.write(up_file.getbuffer())
-                sheet.append_row
+    st.
