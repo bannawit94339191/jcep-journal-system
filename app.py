@@ -26,13 +26,13 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. ฟังก์ชัน Popup แจ้งเตือน (ปรับปุ่มให้อยู่ตรงกลาง) ---
+# --- 2. ฟังก์ชัน Popup แจ้งเตือน (ปุ่มอยู่ตรงกลาง) ---
 @st.dialog("🔔 การแจ้งเตือนจากระบบ")
 def show_message_modal(text):
     st.write(f"<div style='text-align: center;'>{text}</div>", unsafe_allow_html=True)
-    st.write("") # เว้นระยะห่าง
+    st.write("") 
     
-    # สร้าง 3 คอลัมน์เพื่อให้ปุ่มอยู่ในช่องกลาง (ตรงกลางพอดี)
+    # สร้าง 3 คอลัมน์เพื่อให้ปุ่มอยู่ในช่องกลาง
     left, center, right = st.columns([1, 2, 1])
     with center:
         if st.button("ปิดหน้าต่าง", use_container_width=True):
@@ -58,7 +58,7 @@ with st.sidebar:
     st.link_button("🏢 สำนักงานสหกิจศึกษา (OCE)", "https://oce.rmutk.ac.th/", use_container_width=True)
     st.link_button("📘 วารสารสหกิจก้าวหน้า (JCEP)", "https://jcep.rmutk.ac.th/", use_container_width=True)
 
-# --- 5. หน้าสำหรับ User (ฟอร์มลงข้อมูล A-M) ---
+# --- 5. หน้าสำหรับ User (แก้ไขจุดบันทึกข้อมูล A-M) ---
 if page == "หน้าสำหรับ User":
     st.markdown("# 📘 ระบบส่งวารสารสหกิจศึกษาก้าวหน้า")
     st.markdown("### สำนักงานสหกิจศึกษา มหาวิทยาลัยเทคโนโลยีราชมงคลกรุงเทพ")
@@ -89,17 +89,29 @@ if page == "หน้าสำหรับ User":
         if st.form_submit_button("ส่งข้อมูล", type="primary"):
             if up_file and f_name and phone:
                 try:
+                    # 1. บันทึกไฟล์
                     folder_path = "uploaded_journals"
                     if not os.path.exists(folder_path): os.makedirs(folder_path)
                     file_path = os.path.join(folder_path, up_file.name)
                     with open(file_path, "wb") as f:
                         f.write(up_file.getbuffer())
                     
+                    # 2. ปรับลำดับบันทึกลง Sheet ให้ตรงตามภาพ image_f6e0c3 และ f655a3
                     row_count = len(sheet.get_all_values())
                     new_row = [
-                        row_count, prefix, f_name, l_name, uni, 
-                        faculty, major, affiliation, address, 
-                        phone, email, article_type, up_file.name
+                        row_count,      # A: ลำดับที่
+                        prefix,         # B: คำนำหน้าชื่อ
+                        f_name,         # C: ชื่อ
+                        l_name,         # D: นามสกุล
+                        uni,            # E: มหาวิทยาลัย / สถาบัน
+                        faculty,        # F: คณะ
+                        major,          # G: สาขาวิชา
+                        affiliation,    # H: สังกัด / หน่วยงาน
+                        address,        # I: ที่อยู่
+                        phone,          # J: เบอร์โทรศัพท์
+                        email,          # K: E-mail
+                        article_type,   # L: ประเภทบทความ
+                        up_file.name    # M: Filename
                     ]
                     sheet.append_row(new_row)
                     show_message_modal(f"✅ บันทึกข้อมูลเรียบร้อยแล้ว!")
@@ -108,7 +120,7 @@ if page == "หน้าสำหรับ User":
             else:
                 st.warning("⚠️ กรุณากรอกข้อมูลและแนบไฟล์ให้ครบถ้วน")
 
-# --- 6. หน้าสำหรับ Admin ---
+# --- 6. หน้าสำหรับ Admin (คงปุ่มเพิ่ม Admin และระบบดาวน์โหลด) ---
 elif page == "หน้าสำหรับ Admin":
     if not st.session_state.get('logged_in', False):
         st.markdown("### 🔐 เข้าสู่ระบบ Admin")
@@ -143,7 +155,7 @@ elif page == "หน้าสำหรับ Admin":
                 
                 if "Filename" in df.columns:
                     file_list = df["Filename"].dropna().unique().tolist()
-                    selected_file = st.selectbox("เลือกไฟล์ที่ต้องการดาวน์โหลด:", options=file_list, index=None)
+                    selected_file = st.selectbox("เลือกไฟล์ที่ต้องการดาวน์โหลด:", options=file_list, index=None, placeholder="คลิกเพื่อเลือกไฟล์...")
                     
                     if selected_file:
                         f_path = os.path.join("uploaded_journals", str(selected_file))
@@ -154,7 +166,7 @@ elif page == "หน้าสำหรับ Admin":
                                     data=f,
                                     file_name=str(selected_file),
                                     mime="application/octet-stream",
-                                    use_container_width=True
+                                    use_container_width=True # ขยายปุ่มตามภาพ
                                 )
                         else:
                             st.error(f"❌ ไม่พบไฟล์ต้นฉบับในระบบ")
