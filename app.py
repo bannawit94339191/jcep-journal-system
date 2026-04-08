@@ -4,12 +4,12 @@ from google.oauth2 import service_account
 import gspread
 import os
 
-# --- 1. ตั้งค่าพื้นฐานและการตกแต่ง CSS ---
+# --- 1. การตั้งค่าพื้นฐานและ CSS ---
 st.set_page_config(page_title="JCEP Journal System", layout="wide")
 
 st.markdown("""
     <style>
-    /* ตกแต่งปุ่ม Dashboard */
+    /* ปุ่ม Dashboard */
     .stButton>button[kind="primary"] { background-color: #1E3A8A; color: white; border-radius: 8px; border: none; }
     .stButton>button[kind="secondary"] { background-color: #dc3545; color: white; border-radius: 8px; border: none; }
     
@@ -26,7 +26,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. ฟังก์ชัน Popup แจ้งเตือนกลางจอ (Formal Modal) ---
+# --- 2. ฟังก์ชัน Popup แจ้งเตือนกลางจอ (Modal) ---
 @st.dialog("🔔 การแจ้งเตือนจากระบบ")
 def show_message_modal(text):
     st.write(text)
@@ -42,7 +42,7 @@ if "google_auth" in st.secrets:
         spreadsheet = client.open("JCEP_Data")
         sheet = spreadsheet.worksheet("Data_2026")
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"การเชื่อมต่อผิดพลาด: {e}")
 
 # --- 4. Sidebar ---
 with st.sidebar:
@@ -59,72 +59,82 @@ if page == "หน้าสำหรับ User":
     with st.form("user_form", clear_on_submit=True):
         st.subheader("📝 ฟอร์มส่งวารสาร")
         f_name = st.text_input("ชื่อ-นามสกุล")
-        up_file = st.file_uploader("แนบไฟล์บทความ", type=["pdf", "docx"])
+        up_file = st.file_uploader("แนบไฟล์บทความ (PDF/Word)", type=["pdf", "docx"])
         if st.form_submit_button("ส่งข้อมูล", type="primary"):
             if up_file and f_name:
-                # บันทึกไฟล์ลง Folder
+                # บันทึกไฟล์เข้าโฟลเดอร์เครื่อง
                 if not os.path.exists("uploaded_journals"): os.makedirs("uploaded_journals")
                 with open(os.path.join("uploaded_journals", up_file.name), "wb") as f:
                     f.write(up_file.getbuffer())
-                # บันทึกลง Google Sheet
+                # บันทึกชื่อไฟล์ลง Google Sheet
                 sheet.append_row([f_name, up_file.name])
-                show_message_modal("ระบบได้รับข้อมูลและไฟล์ของท่านเรียบร้อยแล้ว")
+                show_message_modal("✅ ระบบได้ทำการบันทึกข้อมูลเรียบร้อยแล้ว!")
             else:
-                st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
+                st.warning("กรุณากรอกข้อมูลและแนบไฟล์ให้ครบถ้วน")
 
-# --- 6. หน้าสำหรับ Admin (กู้คืนระบบเดิมทั้งหมด) ---
+# --- 6. หน้าสำหรับ Admin ---
 elif page == "หน้าสำหรับ Admin":
     if not st.session_state.get('logged_in', False):
-        u_in, p_in = st.text_input("Username"), st.text_input("Password", type="password")
+        u_in = st.text_input("Username")
+        p_in = st.text_input("Password", type="password")
         if st.button("Sign In"):
             if u_in == "bannawit.s" and p_in == "adminjcep":
                 st.session_state.logged_in = True
                 st.rerun()
     else:
-        # ✅ Dashboard Header: ปุ่ม Add Admin ชิดกับ Logout
-        col_h, col_add, col_logout = st.columns([6, 1.5, 1.5])
-        col_h.header("🖥️ Dashboard")
+        # ✅ Dashboard Header: ปุ่มจัดชิดกันทางขวา
+        col_title, col_add, col_logout = st.columns([6, 1.5, 1.5])
+        col_title.header("🖥️ Dashboard")
         if col_add.button("➕ เพิ่ม Admin", type="primary"):
-            show_message_modal("ฟังก์ชันนี้กำลังพัฒนา กรุณาจัดการผ่าน Google Sheets")
+            show_message_modal("ระบบจัดการ Admin กำลังอยู่ในช่วงพัฒนา")
         if col_logout.button("🚪 ออกจากระบบ", type="secondary"):
             st.session_state.logged_in = False
             st.rerun()
 
         st.divider()
 
-        # ✅ ส่วนกลาง: แสดงตารางข้อมูลวารสาร
+        # ✅ การแสดงผลส่วนกลาง (ตารางและระบบดาวน์โหลด)
         try:
             data = sheet.get_all_records()
             if data:
                 df = pd.DataFrame(data)
+                
+                # แสดงตารางข้อมูลวารสาร
                 st.subheader("📊 ตารางข้อมูลวารสาร")
                 st.dataframe(df, use_container_width=True)
                 
                 st.write("---")
                 
-                # ✅ ส่วนท้าย: ระบบดาวน์โหลดแบบเดิม (Selectbox + Button)
+                # ✅ ระบบดาวน์โหลดไฟล์แบบเลือกรายชื่อ
                 st.subheader("📁 ดาวน์โหลดไฟล์")
-                file_col = df.columns[-1] # คอลัมน์สุดท้ายคือชื่อไฟล์
-                file_options = df[file_col].unique()
                 
-                selected_file = st.selectbox("เลือกไฟล์ที่ต้องการดาวน์โหลด:", file_options)
+                # ดึงรายชื่อไฟล์จากคอลัมน์สุดท้ายของ Sheet มาทำรายการให้เลือก
+                file_column = df.columns[-1] 
+                file_list = df[file_column].unique().tolist()
+                
+                selected_file = st.selectbox(
+                    "เลือกไฟล์ที่ต้องการดาวน์โหลดเข้าเครื่อง:", 
+                    options=file_list,
+                    index=None,
+                    placeholder="คลิกเพื่อเลือกไฟล์..."
+                )
                 
                 if selected_file:
                     file_path = f"uploaded_journals/{selected_file}"
                     if os.path.exists(file_path):
                         with open(file_path, "rb") as f:
                             st.download_button(
-                                label=f"💾 ดาวน์โหลดไฟล์: {selected_file}",
+                                label=f"💾 กดดาวน์โหลด: {selected_file}",
                                 data=f,
                                 file_name=str(selected_file),
                                 mime="application/octet-stream"
                             )
                     else:
-                        st.warning(f"⚠️ ไม่พบไฟล์ {selected_file} ในโฟลเดอร์ระบบ")
+                        st.warning(f"⚠️ ไม่พบไฟล์ {selected_file} ในเครื่อง (กรุณาตรวจสอบโฟลเดอร์ uploaded_journals)")
             else:
                 st.info("ยังไม่มีข้อมูลวารสารในระบบ")
         except Exception as e:
-            st.error(f"เกิดข้อผิดพลาดในการดึงข้อมูล: {e}")
+            st.error(f"ไม่สามารถดึงข้อมูลจาก Sheets ได้: {e}")
 
 # --- 7. Footer ---
 st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
