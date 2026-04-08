@@ -9,10 +9,15 @@ st.set_page_config(page_title="JCEP Journal System", layout="wide")
 
 st.markdown("""
     <style>
+    /* ตกแต่งปุ่ม Dashboard */
     .stButton>button[kind="primary"] { background-color: #1E3A8A; color: white; border-radius: 8px; }
     .stButton>button[kind="secondary"] { background-color: #dc3545; color: white; border-radius: 8px; }
+    
+    /* Sidebar */
     section[data-testid="stSidebar"] { background-color: #F0F9FF; }
     .sidebar-divider { border-top: 3px solid #000000; margin: 10px 0; }
+    
+    /* Footer */
     .footer { 
         position: fixed; left: 0; bottom: 0; width: 100%; 
         background-color: #28a745; color: white; text-align: center; 
@@ -48,7 +53,7 @@ with st.sidebar:
     st.link_button("🏢 สำนักงานสหกิจศึกษา (OCE)", "https://oce.rmutk.ac.th/", use_container_width=True)
     st.link_button("📘 วารสารสหกิจก้าวหน้า (JCEP)", "https://jcep.rmutk.ac.th/", use_container_width=True)
 
-# --- 5. หน้าสำหรับ User ---
+# --- 5. หน้าสำหรับ User (ฟอร์มลงข้อมูล A-M) ---
 if page == "หน้าสำหรับ User":
     st.markdown("# 📘 ระบบส่งบทความวารสาร JCEP")
     st.markdown("### สำนักงานสหกิจศึกษา มทร.กรุงเทพ")
@@ -79,14 +84,12 @@ if page == "หน้าสำหรับ User":
         if st.form_submit_button("ส่งข้อมูล", type="primary"):
             if up_file and f_name and phone:
                 try:
-                    # 1. บันทึกไฟล์ลง Folder ทันที
                     folder_path = "uploaded_journals"
                     if not os.path.exists(folder_path): os.makedirs(folder_path)
                     file_path = os.path.join(folder_path, up_file.name)
                     with open(file_path, "wb") as f:
                         f.write(up_file.getbuffer())
                     
-                    # 2. บันทึกลง Google Sheet (ลำดับ A-M ให้ตรงภาพ f655a3)
                     row_count = len(sheet.get_all_values())
                     new_row = [
                         row_count, prefix, f_name, l_name, uni, 
@@ -94,14 +97,13 @@ if page == "หน้าสำหรับ User":
                         phone, email, article_type, up_file.name
                     ]
                     sheet.append_row(new_row)
-                    
                     show_message_modal(f"✅ บันทึกข้อมูลเรียบร้อยแล้ว!")
                 except Exception as e:
-                    st.error(f"เกิดข้อผิดพลาดในการบันทึก: {e}")
+                    st.error(f"เกิดข้อผิดพลาด: {e}")
             else:
-                st.warning("⚠️ กรุณากรอกข้อมูลสำคัญและแนบไฟล์ให้ครบถ้วน")
+                st.warning("⚠️ กรุณากรอกข้อมูลและแนบไฟล์ให้ครบถ้วน")
 
-# --- 6. หน้าสำหรับ Admin (กู้คืนระบบดาวน์โหลด) ---
+# --- 6. หน้าสำหรับ Admin (กู้คืนปุ่ม Add Admin + ระบบดาวน์โหลด) ---
 elif page == "หน้าสำหรับ Admin":
     if not st.session_state.get('logged_in', False):
         st.markdown("### 🔐 เข้าสู่ระบบ Admin")
@@ -112,8 +114,13 @@ elif page == "หน้าสำหรับ Admin":
                 st.session_state.logged_in = True
                 st.rerun()
     else:
-        col_title, col_logout = st.columns([8, 1.5])
+        # ✅ กู้คืนปุ่มเพิ่ม Admin และจัดวาง Layout ตามภาพ
+        col_title, col_add, col_logout = st.columns([6, 1.5, 1.5])
         col_title.markdown("## 🖥️ Dashboard")
+        
+        if col_add.button("➕ เพิ่ม Admin", type="primary"):
+            show_message_modal("ขณะนี้ท่านสามารถจัดการรายชื่อผู้ดูแลได้โดยตรงผ่าน Google Sheets ใน Tab 'Admins'")
+            
         if col_logout.button("🚪 ออกจากระบบ", type="secondary"):
             st.session_state.logged_in = False
             st.rerun()
@@ -121,7 +128,6 @@ elif page == "หน้าสำหรับ Admin":
         st.divider()
 
         try:
-            # ดึงข้อมูลใหม่สดๆ
             data = sheet.get_all_records()
             if data:
                 df = pd.DataFrame(data)
@@ -129,25 +135,15 @@ elif page == "หน้าสำหรับ Admin":
                 st.dataframe(df, use_container_width=True)
                 
                 st.write("---")
-                
-                # ✅ กู้คืนระบบดาวน์โหลดไฟล์
                 st.markdown("### 📁 ดาวน์โหลดไฟล์บทความ")
                 
-                # ตรวจสอบชื่อคอลัมน์เก็บไฟล์ (ต้องตรงกับหัวตาราง 'Filename' ในภาพ f655a3)
-                column_name = "Filename" 
-                if column_name in df.columns:
-                    file_list = df[column_name].dropna().unique().tolist()
-                    
-                    selected_file = st.selectbox(
-                        "เลือกไฟล์ที่ต้องการดาวน์โหลด:", 
-                        options=file_list,
-                        index=None,
-                        placeholder="ค้นหาชื่อไฟล์จากรายการนี้..."
-                    )
+                # อ้างอิงคอลัมน์ "Filename" ตามตารางจริง
+                if "Filename" in df.columns:
+                    file_list = df["Filename"].dropna().unique().tolist()
+                    selected_file = st.selectbox("เลือกไฟล์ที่ต้องการดาวน์โหลด:", options=file_list, index=None)
                     
                     if selected_file:
                         f_path = os.path.join("uploaded_journals", str(selected_file))
-                        
                         if os.path.exists(f_path):
                             with open(f_path, "rb") as f:
                                 st.download_button(
@@ -155,16 +151,14 @@ elif page == "หน้าสำหรับ Admin":
                                     data=f,
                                     file_name=str(selected_file),
                                     mime="application/octet-stream",
-                                    use_container_width=True # ขยายปุ่มให้เต็มหน้าจอตามภาพ f5fc22
+                                    use_container_width=True # ปุ่มขยายเต็มความกว้าง
                                 )
                         else:
-                            st.error(f"❌ ไม่พบไฟล์ต้นฉบับในเครื่อง (Path: {f_path})")
-                else:
-                    st.warning("⚠️ ไม่พบคอลัมน์ 'Filename' ในฐานข้อมูล กรุณาตรวจสอบหัวตาราง")
+                            st.error(f"❌ ไม่พบไฟล์ต้นฉบับในระบบ")
             else:
                 st.info("ℹ️ ยังไม่มีข้อมูลในระบบ")
         except Exception as e:
-            st.error(f"ไม่สามารถโหลดข้อมูลได้: {e}")
+            st.error(f"เกิดข้อผิดพลาด: {e}")
 
 # --- 7. Footer ---
 st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
