@@ -25,7 +25,7 @@ st.markdown("""
 @st.dialog("🔔 การแจ้งเตือนจากระบบ")
 def show_message_modal(text):
     st.write(text)
-    if st.button("ตกลง / ปิดหน้าต่าง"):
+    if st.button("ปิดหน้าต่าง"):
         st.rerun()
 
 # --- 3. การเชื่อมต่อ Google Services ---
@@ -41,7 +41,7 @@ if "google_auth" in st.secrets:
 
 # --- 4. Sidebar ---
 with st.sidebar:
-    st.markdown("## 🏠 หน้าหลัก")
+    st.markdown("## 🏠 HOME")
     page = st.selectbox("เลือกเมนูการใช้งาน:", ["หน้าสำหรับ User", "หน้าสำหรับ Admin"])
     st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
     st.link_button("🏫 มทร.กรุงเทพ (RMUTK)", "https://rmutk.ac.th", use_container_width=True)
@@ -50,8 +50,8 @@ with st.sidebar:
 
 # --- 5. หน้าสำหรับ User (ปรับช่องกรอกและลำดับการบันทึก) ---
 if page == "หน้าสำหรับ User":
-    st.markdown("# 📘 ระบบส่งบทความวารสาร JCEP")
-    st.markdown("### สำนักงานสหกิจศึกษา มทร.กรุงเทพ")
+    st.markdown("# 📘 วารสารสหกิจศึกษาก้าวหน้า - สำนักงานสหกิจศึกษา")
+    st.markdown("### สJournal of Cooperative Education Progress")
     
     with st.form("user_form", clear_on_submit=True):
         st.markdown("#### 📝 ฟอร์มส่งวารสาร")
