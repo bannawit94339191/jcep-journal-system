@@ -64,3 +64,75 @@ with st.sidebar:
     st.link_button("📘 วารสารสหกิจก้าวหน้า (JCEP)", "https://jcep.rmutk.ac.th/", use_container_width=True)
 
 # --- 4. หน้าสำหรับ User ---
+if page == "หน้าสำหรับ User":
+    # แบนเนอร์ JCEP ด้านบนสุด
+    if os.path.exists("logo.gif"):
+        st.image("logo.gif", use_container_width=True)
+        st.write("---")
+    else:
+        st.header("📘 ระบบจัดเก็บข้อมูลวารสารสหกิจศึกษาก้าวหน้า")
+
+    try:
+        next_id = len(sheet.get_all_values())
+    except: next_id = 1
+
+    with st.form("user_form"):
+        st.info(f"📍 ลำดับที่: {next_id}")
+        col_p, col_f, col_l = st.columns([1, 2, 2])
+        prefix = col_p.selectbox("คำนำหน้า", ["นาย", "นางสาว", "ผศ.", "รศ.", "ศ."])
+        f_name = col_f.text_input("ชื่อ")
+        l_name = col_l.text_input("นามสกุล")
+        
+        uni = st.text_input("มหาวิทยาลัย / สถาบัน")
+        col_fac, col_maj = st.columns(2)
+        faculty = col_fac.text_input("คณะ")
+        major = col_maj.text_input("สาขาวิชา")
+        org = st.text_input("สังกัด / หน่วยงาน")
+        addr = st.text_area("ที่อยู่สำหรับการจัดส่งเอกสาร")
+        
+        col_tel, col_email = st.columns(2)
+        phone = col_tel.text_input("เบอร์โทรศัพท์")
+        email_u = col_email.text_input("E-mail")
+
+        st.write("---")
+        # ประเภทบทความ
+        article_type = st.radio("**12. ประเภทบทความ**", ["บทความวิจัย", "บทความวิชาการ", "อื่นๆ"], horizontal=True)
+        other_detail = st.text_input("โปรดเลือกประเภทบทความ (หากเลือกอื่นๆ)")
+
+        st.write("---")
+        # แนบไฟล์
+        up_file = st.file_uploader("13. แนบไฟล์ (PDF/Word)", type=["pdf", "docx", "doc"])
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        btn1, btn2, _ = st.columns([1, 1, 4])
+        
+        if btn1.form_submit_button("ส่งข้อมูล", type="primary"):
+            if up_file:
+                final_type = article_type if article_type != "อื่นๆ" else f"อื่นๆ: {other_detail}"
+                sheet.append_row([next_id, prefix, f_name, l_name, uni, faculty, major, org, addr, phone, email_u, final_type, up_file.name])
+                st.success("🎉 บันทึกข้อมูลสำเร็จ!")
+            else: st.error("⚠️ กรุณาแนบไฟล์ก่อนส่ง")
+        
+        if btn2.form_submit_button("ยกเลิก", type="secondary"):
+            st.rerun()
+
+# --- 5. หน้าสำหรับ Admin ---
+elif page == "หน้าสำหรับ Admin":
+    if not st.session_state.get('logged_in', False):
+        st.subheader("🔐 Login Admin")
+        u_in = st.text_input("Username")
+        p_in = st.text_input("Password", type="password")
+        if st.button("Sign In"):
+            if u_in == "bannawit.s" and p_in == "adminjcep":
+                st.session_state.logged_in = True
+                st.rerun()
+    else:
+        if st.button("Logout"): 
+            st.session_state.logged_in = False
+            st.rerun()
+        st.header("🖥️ Dashboard")
+        df = pd.DataFrame(sheet.get_all_records())
+        st.dataframe(df, use_container_width=True)
+
+# --- 6. Footer สีเขียว ---
+st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
