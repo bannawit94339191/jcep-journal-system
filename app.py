@@ -10,20 +10,24 @@ st.set_page_config(page_title="JCEP Journal System", layout="wide")
 
 st.markdown("""
     <style>
-    .stButton>button[kind="primary"] { background-color: #1E3A8A; color: white; border-radius: 8px; }
-    .stButton>button[kind="secondary"] { background-color: #dc3545; color: white; border-radius: 8px; }
+    /* ปุ่มส่งข้อมูลสีน้ำเงินเข้ม */
+    .stButton>button[kind="primary"] { background-color: #1E3A8A; color: white; border-radius: 8px; border: none; }
+    /* ปุ่มยกเลิก/Logout สีแดง */
+    .stButton>button[kind="secondary"] { background-color: #dc3545; color: white; border-radius: 8px; border: none; }
+    
+    /* ตกแต่ง Sidebar */
     section[data-testid="stSidebar"] { background-color: #F0F9FF; }
+    
+    /* Footer สีเขียวสดใส */
     .footer { 
         position: fixed; left: 0; bottom: 0; width: 100%; 
         background-color: #28a745; color: white; text-align: center; 
         padding: 10px; font-weight: bold; z-index: 100;
     }
-    /* ปรับแต่งปุ่มให้ดูเรียบร้อยขึ้น */
-    div.stButton > button { width: 100%; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. การเชื่อมต่อ Google Services (กู้คืนช่องข้อมูลที่หายไป!) ---
+# --- 2. การเชื่อมต่อ Google Services ---
 if "google_auth" in st.secrets:
     try:
         info = st.secrets["google_auth"]
@@ -37,7 +41,7 @@ if "google_auth" in st.secrets:
     except Exception as e:
         st.error(f"การเชื่อมต่อผิดพลาด: {e}")
 
-# --- 3. ฟังก์ชัน Modal สำหรับเพิ่ม Admin ---
+# --- 3. ฟังก์ชัน Modal สำหรับเพิ่ม Admin (Popup) ---
 @st.dialog("➕ เพิ่มผู้ดูแลระบบใหม่ (Add Admin)")
 def add_admin_modal():
     with st.form("add_admin_form", clear_on_submit=True):
@@ -59,7 +63,7 @@ def add_admin_modal():
                 else: st.error("ไม่พบฐานข้อมูล Admin")
             else: st.error("กรุณากรอกข้อมูลให้ครบถ้วน")
 
-# --- 4. Sidebar พร้อมปุ่ม Link 3 ปุ่ม ---
+# --- 4. Sidebar ---
 with st.sidebar:
     st.markdown("### 🏠 HOME")
     page = st.selectbox("เลือกเมนูการใช้งาน:", ["หน้าสำหรับ User", "หน้าสำหรับ Admin"])
@@ -109,7 +113,7 @@ if page == "หน้าสำหรับ User":
                 except Exception as e: st.error(f"เกิดข้อผิดพลาด: {e}")
             else: st.warning("⚠️ กรุณาแนบไฟล์ก่อนส่ง")
 
-# --- 6. หน้าสำหรับ Admin (ปรับปุ่ม Add Admin ไว้ข้าง Logout) ---
+# --- 6. หน้าสำหรับ Admin (ฉบับปรับปรุงตามสั่ง) ---
 elif page == "หน้าสำหรับ Admin":
     if not st.session_state.get('logged_in', False):
         st.subheader("🔐 เข้าสู่ระบบผู้ดูแลระบบ")
@@ -121,33 +125,33 @@ elif page == "หน้าสำหรับ Admin":
                 st.rerun()
             else: st.error("ข้อมูลไม่ถูกต้อง")
     else:
-        # ✅ ส่วนหัว: จัดวางปุ่ม Add Admin และ Logout ไว้ข้างกัน
-        col_h1, col_h2, col_h3 = st.columns([5, 2.5, 2.5])
+        # ✅ ส่วนหัว: ปรับปุ่มให้ชิดกันมากขึ้นโดยใช้ columns ที่มีอัตราส่วนแคบลง
+        col_h1, col_btn1, col_btn2, col_spacer = st.columns([6, 1.5, 1.5, 1])
         col_h1.header("🖥️ Dashboard")
         
-        if col_h2.button("➕ เพิ่ม Admin", type="primary"):
-            add_admin_modal() # เรียกใช้ Popup Modal
+        # ✅ ขยับปุ่มมาไว้ใกล้ๆ กัน
+        if col_btn1.button("➕ เพิ่ม Admin", type="primary"):
+            add_admin_modal()
             
-        if col_h3.button("🚪 ออกจากระบบ", type="secondary"):
+        if col_btn2.button("🚪 ออกจากระบบ", type="secondary"):
             st.session_state.logged_in = False
             st.rerun()
 
         st.divider()
 
-        # ✅ แสดงตาราง Admin (ชื่อ, Email, Role ครบ!)
-        if admin_sheet:
-            st.subheader("👤 รายชื่อผู้ดูแลระบบ")
-            admin_df = pd.DataFrame(admin_sheet.get_all_records())
-            st.dataframe(admin_df, use_container_width=True)
+        # ❌ ลบส่วนแสดงตารางรายชื่อผู้ดูแลระบบออกตามสั่งแล้ว
 
-        st.divider()
-
-        # ✅ ตารางข้อมูลวารสาร
-        st.subheader("📊 ข้อมูลวารสาร")
-        data = sheet.get_all_records()
-        if data:
-            df = pd.DataFrame(data)
-            st.dataframe(df, use_container_width=True)
+        # ✅ แสดงเฉพาะตารางข้อมูลวารสารที่ส่งเข้ามา
+        st.subheader("📊 ตารางข้อมูลวารสาร")
+        try:
+            data = sheet.get_all_records()
+            if data:
+                df = pd.DataFrame(data)
+                st.dataframe(df, use_container_width=True)
+            else:
+                st.info("ยังไม่มีข้อมูลการส่งวารสาร")
+        except Exception as e:
+            st.error(f"โหลดข้อมูลไม่สำเร็จ: {e}")
 
 # --- 7. Footer สีเขียว ---
 st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
