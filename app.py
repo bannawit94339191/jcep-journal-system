@@ -30,7 +30,7 @@ st.markdown("""
 @st.dialog("🔔 การแจ้งเตือนจากระบบ")
 def show_message_modal(text):
     st.write(text)
-    if st.button("ตกลง / ปิดหน้าต่าง"):
+    if st.button("ปิดหน้าต่าง"):
         st.rerun()
 
 # --- 3. การเชื่อมต่อ Google Services ---
@@ -55,7 +55,7 @@ with st.sidebar:
 
 # --- 5. หน้าสำหรับ User (ฟอร์มครบตามภาพ f5ec84) ---
 if page == "หน้าสำหรับ User":
-    st.markdown("# 📘 ระบบส่งบทความวารสาร JCEP")
+    st.markdown("# 📘 วารสารสหกิจศึกษาก้าวหน้า - Journal of Cooperative Education Progress")
     st.markdown("### สำนักงานสหกิจศึกษา มทร.กรุงเทพ")
     
     with st.form("user_form", clear_on_submit=True):
