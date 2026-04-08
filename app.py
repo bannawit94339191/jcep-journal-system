@@ -5,7 +5,7 @@ import gspread
 import os
 import time
 
-# --- 1. การตั้งค่าหน้าจอและ CSS ---
+# --- 1. ตั้งค่าพื้นฐานและการตกแต่ง CSS ---
 st.set_page_config(page_title="JCEP Journal System", layout="wide")
 
 st.markdown("""
@@ -18,21 +18,12 @@ st.markdown("""
         background-color: #28a745; color: white; text-align: center; 
         padding: 10px; font-weight: bold; z-index: 100;
     }
+    /* ปรับแต่งปุ่มให้ดูเรียบร้อยขึ้น */
+    div.stButton > button { width: 100%; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. ฟังก์ชันจัดการ Popup (Modal) ---
-@st.dialog("ผลการบันทึกข้อมูล")
-def show_result_modal(status, message):
-    if status == "success":
-        st.success(message)
-        st.balloons()
-    else:
-        st.error(message)
-    if st.button("ตกลง"):
-        st.rerun()
-
-# --- 3. การเชื่อมต่อ Google Services ---
+# --- 2. การเชื่อมต่อ Google Services (กู้คืนช่องข้อมูลที่หายไป!) ---
 if "google_auth" in st.secrets:
     try:
         info = st.secrets["google_auth"]
@@ -41,11 +32,32 @@ if "google_auth" in st.secrets:
         client = gspread.authorize(creds.with_scopes(scope))
         spreadsheet = client.open("JCEP_Data")
         sheet = spreadsheet.worksheet("Data_2026")
-        # เช็คว่ามี sheet สำหรับ Admin ไหม ถ้าไม่มีให้ใช้ sheet1 หรือสร้างใหม่
         try: admin_sheet = spreadsheet.worksheet("Admin_Users")
         except: admin_sheet = None
     except Exception as e:
         st.error(f"การเชื่อมต่อผิดพลาด: {e}")
+
+# --- 3. ฟังก์ชัน Modal สำหรับเพิ่ม Admin ---
+@st.dialog("➕ เพิ่มผู้ดูแลระบบใหม่ (Add Admin)")
+def add_admin_modal():
+    with st.form("add_admin_form", clear_on_submit=True):
+        col_a1, col_a2 = st.columns(2)
+        adm_user = col_a1.text_input("Username")
+        adm_pass = col_a2.text_input("Password", type="password")
+        
+        adm_fullname = st.text_input("ชื่อ-นามสกุล")
+        adm_email = st.text_input("E-mail")
+        adm_role = st.selectbox("ตำแหน่ง (Role)", ["Super Admin", "Editor", "Viewer"])
+        
+        if st.form_submit_button("บันทึก Admin ใหม่", type="primary"):
+            if adm_user and adm_pass:
+                if admin_sheet:
+                    admin_sheet.append_row([adm_user, adm_pass, adm_fullname, adm_email, adm_role])
+                    st.success(f"เพิ่ม {adm_fullname} สำเร็จ!")
+                    time.sleep(1)
+                    st.rerun()
+                else: st.error("ไม่พบฐานข้อมูล Admin")
+            else: st.error("กรุณากรอกข้อมูลให้ครบถ้วน")
 
 # --- 4. Sidebar พร้อมปุ่ม Link 3 ปุ่ม ---
 with st.sidebar:
@@ -82,79 +94,26 @@ if page == "หน้าสำหรับ User":
 
         st.write("---")
         article_type = st.radio("**12. ประเภทบทความ**", ["บทความวิจัย", "บทความวิชาการ", "อื่นๆ"], horizontal=True)
-        other_detail = st.text_input("โปรดระบุ (หากเลือกอื่นๆ)")
+        other_detail = st.text_input("โปรดเลือกประเภทบทความ (หากเลือกอื่นๆ)")
 
         st.write("---")
         up_file = st.file_uploader("13. แนบไฟล์ (PDF/Word)", type=["pdf", "docx", "doc"])
 
-        btn1, btn2, _ = st.columns([1, 1, 4])
-        if btn1.form_submit_button("ส่งข้อมูล", type="primary"):
+        if st.form_submit_button("ส่งข้อมูล", type="primary"):
             if up_file:
                 try:
                     final_type = article_type if article_type != "อื่นๆ" else f"อื่นๆ: {other_detail}"
-                    if not os.path.exists("uploaded_journals"): os.makedirs("uploaded_journals")
-                    with open(os.path.join("uploaded_journals", up_file.name), "wb") as f: f.write(up_file.getvalue())
-                    
                     sheet.append_row([next_id, prefix, f_name, l_name, uni, faculty, major, org, addr, phone, email_u, final_type, up_file.name])
-                    show_result_modal("success", "บันทึกข้อมูลสำเร็จเรียบร้อยแล้ว!")
-                except Exception as e:
-                    show_result_modal("error", f"เกิดข้อผิดพลาด: {e}")
-            else:
-                st.warning("⚠️ กรุณาแนบไฟล์ก่อนส่ง")
+                    st.success("✅ บันทึกข้อมูลสำเร็จ!")
+                    st.balloons()
+                except Exception as e: st.error(f"เกิดข้อผิดพลาด: {e}")
+            else: st.warning("⚠️ กรุณาแนบไฟล์ก่อนส่ง")
 
-# --- 6. หน้าสำหรับ Admin (กู้คืนตารางและปุ่มต่างๆ) ---
+# --- 6. หน้าสำหรับ Admin (ปรับปุ่ม Add Admin ไว้ข้าง Logout) ---
 elif page == "หน้าสำหรับ Admin":
     if not st.session_state.get('logged_in', False):
         st.subheader("🔐 เข้าสู่ระบบผู้ดูแลระบบ")
         u_in = st.text_input("Username")
         p_in = st.text_input("Password", type="password")
         if st.button("Sign In", type="primary"):
-            if u_in == "bannawit.s" and p_in == "adminjcep":
-                st.session_state.logged_in = True
-                st.rerun()
-            else: st.error("Username หรือ Password ไม่ถูกต้อง")
-    else:
-        # ส่วนหัว Admin
-        col_h1, col_h2 = st.columns([8, 2])
-        col_h1.header("🖥️ แผงควบคุมผู้ดูแลระบบ (Admin Dashboard)")
-        if col_h2.button("ออกจากระบบ", type="secondary"):
-            st.session_state.logged_in = False
-            st.rerun()
-
-        # ✅ 1. ตารางข้อมูล (กู้คืนมาแล้ว!)
-        st.subheader("📊 ตารางข้อมูลวารสาร")
-        try:
-            data = sheet.get_all_records()
-            if data:
-                df = pd.DataFrame(data)
-                st.dataframe(df, use_container_width=True)
-                
-                # ✅ 2. ปุ่มดาวน์โหลดเอกสาร (กู้คืนมาแล้ว!)
-                st.divider()
-                st.subheader("📁 จัดการไฟล์แนบ")
-                file_to_download = st.selectbox("เลือกไฟล์ที่ต้องการดาวน์โหลด:", df[df.columns[-1]].unique())
-                file_path = os.path.join("uploaded_journals", str(file_to_download))
-                if os.path.exists(file_path):
-                    with open(file_path, "rb") as f:
-                        st.download_button(label=f"💾 ดาวน์โหลด {file_to_download}", data=f, file_name=str(file_to_download))
-                else:
-                    st.info("ไม่พบไฟล์ในระบบ (อาจยังไม่ได้อัปโหลดไฟล์จริงลงเซิร์ฟเวอร์)")
-            else:
-                st.info("ยังไม่มีข้อมูลในระบบ")
-        except Exception as e:
-            st.error(f"ไม่สามารถโหลดข้อมูลจาก Google Sheets ได้: {e}")
-
-        # ✅ 3. ปุ่ม Add Admin (กู้คืนมาแล้ว!)
-        st.divider()
-        with st.expander("➕ เพิ่มผู้ดูแลระบบใหม่ (Add Admin)"):
-            new_user = st.text_input("New Admin Username")
-            new_pass = st.text_input("New Admin Password", type="password")
-            if st.button("บันทึก Admin ใหม่"):
-                if admin_sheet:
-                    admin_sheet.append_row([new_user, new_pass])
-                    st.success(f"เพิ่ม Admin: {new_user} สำเร็จ!")
-                else:
-                    st.error("ไม่พบ Sheet สำหรับเก็บข้อมูล Admin")
-
-# --- 7. Footer สีเขียว ---
-st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
+            if u_in ==
