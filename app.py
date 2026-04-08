@@ -53,7 +53,7 @@ with st.sidebar:
     st.link_button("🏢 สำนักงานสหกิจศึกษา (OCE)", "https://oce.rmutk.ac.th/", use_container_width=True)
     st.link_button("📘 วารสารสหกิจก้าวหน้า (JCEP)", "https://jcep.rmutk.ac.th/", use_container_width=True)
 
-# --- 5. หน้าสำหรับ User (ตัวหนังสือล้วน + ฟอร์มครบ) ---
+# --- 5. หน้าสำหรับ User (ฟอร์มครบตามภาพ f5ec84) ---
 if page == "หน้าสำหรับ User":
     st.markdown("# 📘 ระบบส่งบทความวารสาร JCEP")
     st.markdown("### สำนักงานสหกิจศึกษา มทร.กรุงเทพ")
@@ -83,7 +83,7 @@ if page == "หน้าสำหรับ User":
         if st.form_submit_button("ส่งข้อมูล", type="primary"):
             if up_file and f_name and phone:
                 try:
-                    # บันทึกไฟล์
+                    # บันทึกไฟล์ลง Folder
                     if not os.path.exists("uploaded_journals"): os.makedirs("uploaded_journals")
                     file_path = os.path.join("uploaded_journals", up_file.name)
                     with open(file_path, "wb") as f:
@@ -123,8 +123,9 @@ elif page == "หน้าสำหรับ Admin":
 
         st.divider()
 
-        # ✅ ตารางข้อมูล
+        # ✅ ตารางข้อมูลและระบบดาวน์โหลด
         try:
+            # ดึงข้อมูลใหม่สดๆ ทุกครั้งที่เปิดหน้า
             data = sheet.get_all_records()
             if data:
                 df = pd.DataFrame(data)
@@ -133,32 +134,35 @@ elif page == "หน้าสำหรับ Admin":
                 
                 st.write("---")
                 
-                # ✅ ระบบดาวน์โหลดไฟล์
+                # ✅ ระบบดาวน์โหลดไฟล์ (แก้ไขจุดที่เพื่อนแจ้งว่าไฟล์ไม่ขึ้น)
                 st.markdown("### 📁 ดาวน์โหลดไฟล์")
-                file_col = df.columns[-1] 
-                file_list = df[file_col].unique().tolist()
+                
+                # บังคับเลือกจากคอลัมน์สุดท้ายของตาราง (ที่เก็บชื่อไฟล์)
+                file_options = df.iloc[:, -1].dropna().unique().tolist()
                 
                 selected_file = st.selectbox(
-                    "เลือกไฟล์ที่ต้องการดาวน์โหลด:", 
-                    options=file_list,
+                    "เลือกไฟล์ที่ต้องการดาวน์โหลดจากระบบ:", 
+                    options=file_options,
                     index=None,
-                    placeholder="คลิกเพื่อเลือกไฟล์..."
+                    placeholder="คลิกเพื่อค้นหารายชื่อไฟล์..."
                 )
                 
+                # แสดงปุ่มดาวน์โหลดเฉพาะเมื่อมีการเลือกไฟล์แล้วเท่านั้น
                 if selected_file:
                     f_path = f"uploaded_journals/{selected_file}"
                     if os.path.exists(f_path):
                         with open(f_path, "rb") as f:
                             st.download_button(
-                                label=f"💾 กดดาวน์โหลด: {selected_file}",
+                                label=f"💾 ดาวน์โหลดไฟล์: {selected_file}",
                                 data=f,
                                 file_name=str(selected_file),
-                                mime="application/octet-stream"
+                                mime="application/octet-stream",
+                                use_container_width=True # ขยายปุ่มให้เต็มหน้าจอตามภาพ f5fc22
                             )
                     else:
-                        st.warning(f"⚠️ ไม่พบไฟล์ {selected_file} ในระบบ")
+                        st.error(f"❌ ไม่พบไฟล์ต้นฉบับ '{selected_file}' ในโฟลเดอร์เครื่อง (กรุณาเช็คโฟลเดอร์ uploaded_journals)")
             else:
-                st.info("ยังไม่มีข้อมูลในระบบ")
+                st.info("ℹ️ ยังไม่มีข้อมูลในระบบ")
         except Exception as e:
             st.error(f"ไม่สามารถดึงข้อมูลได้: {e}")
 
