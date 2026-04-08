@@ -116,4 +116,38 @@ elif page == "หน้าสำหรับ Admin":
         u_in = st.text_input("Username")
         p_in = st.text_input("Password", type="password")
         if st.button("Sign In", type="primary"):
-            if u_in ==
+            if u_in == "bannawit.s" and p_in == "adminjcep":
+                st.session_state.logged_in = True
+                st.rerun()
+            else: st.error("ข้อมูลไม่ถูกต้อง")
+    else:
+        # ✅ ส่วนหัว: จัดวางปุ่ม Add Admin และ Logout ไว้ข้างกัน
+        col_h1, col_h2, col_h3 = st.columns([5, 2.5, 2.5])
+        col_h1.header("🖥️ Dashboard")
+        
+        if col_h2.button("➕ เพิ่ม Admin", type="primary"):
+            add_admin_modal() # เรียกใช้ Popup Modal
+            
+        if col_h3.button("🚪 ออกจากระบบ", type="secondary"):
+            st.session_state.logged_in = False
+            st.rerun()
+
+        st.divider()
+
+        # ✅ แสดงตาราง Admin (ชื่อ, Email, Role ครบ!)
+        if admin_sheet:
+            st.subheader("👤 รายชื่อผู้ดูแลระบบ")
+            admin_df = pd.DataFrame(admin_sheet.get_all_records())
+            st.dataframe(admin_df, use_container_width=True)
+
+        st.divider()
+
+        # ✅ ตารางข้อมูลวารสาร
+        st.subheader("📊 ข้อมูลวารสาร")
+        data = sheet.get_all_records()
+        if data:
+            df = pd.DataFrame(data)
+            st.dataframe(df, use_container_width=True)
+
+# --- 7. Footer สีเขียว ---
+st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
