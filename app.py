@@ -30,7 +30,7 @@ st.markdown("""
 @st.dialog("🔔 การแจ้งเตือนจากระบบ")
 def show_message_modal(text):
     st.write(text)
-    if st.button("ตกลง / ปิดหน้าต่าง"):
+    if st.button("ปิดหน้าต่าง"):
         st.rerun()
 
 # --- 3. การเชื่อมต่อ Google Services ---
@@ -46,7 +46,7 @@ if "google_auth" in st.secrets:
 
 # --- 4. Sidebar ---
 with st.sidebar:
-    st.markdown("## 🏠 หน้าหลัก")
+    st.markdown("## 🏠 HOME")
     page = st.selectbox("เลือกเมนูการใช้งาน:", ["หน้าสำหรับ User", "หน้าสำหรับ Admin"])
     st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
     st.link_button("🏫 มทร.กรุงเทพ (RMUTK)", "https://rmutk.ac.th", use_container_width=True)
@@ -55,14 +55,14 @@ with st.sidebar:
 
 # --- 5. หน้าสำหรับ User (ฟอร์มลงข้อมูล A-M) ---
 if page == "หน้าสำหรับ User":
-    st.markdown("# 📘 ระบบส่งบทความวารสาร JCEP")
-    st.markdown("### สำนักงานสหกิจศึกษา มทร.กรุงเทพ")
+    st.markdown("# 📘 ระบบส่งวารสารสหกิจศึกษาก้าวหน้า")
+    st.markdown("### สำนักงานสหกิจศึกษา มหาวิทยาลัยเทคโนโลยีราชมงคลกรุงเทพ")
     
     with st.form("user_form", clear_on_submit=True):
         st.markdown("#### 📝 ฟอร์มส่งวารสาร")
         
         col_p, col_f, col_l = st.columns([1, 2, 2])
-        prefix = col_p.selectbox("คำนำหน้า", ["นาย", "นางสาว", "ผศ.", "รศ.", "ศ."])
+        prefix = col_p.selectbox("คำนำหน้า", ["นาย", "นางสาว", "ผู้ช้วยศาสตราจารย์", "รองศาสตราจารย์", "ศาสตรจารย์"])
         f_name = col_f.text_input("ชื่อ")
         l_name = col_l.text_input("นามสกุล")
         
