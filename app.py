@@ -14,10 +14,11 @@ st.markdown("""
     /* ปุ่มยกเลิกสีแดง */
     .stButton>button[kind="secondary"] { background-color: #dc3545; color: white; border-radius: 8px; border: none; }
     
-    /* ตกแต่ง Sidebar โทนสีฟ้าอ่อน */
+    /* ตกแต่ง Sidebar */
     section[data-testid="stSidebar"] { background-color: #F0F9FF; }
-    
-    /* Footer สีเขียวสดใส */
+    [data-testid="stSidebar"] h3 { color: #1E3A8A; font-weight: bold; }
+
+    /* Footer สีเขียว */
     .footer { 
         position: fixed; left: 0; bottom: 0; width: 100%; 
         background-color: #28a745; color: white; text-align: center; 
@@ -27,7 +28,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. การเชื่อมต่อ Google Services ---
+# --- 2. การเชื่อมต่อ Google Services (ส่วนนี้เหมือนเดิม) ---
 if "google_auth" in st.secrets:
     try:
         info = st.secrets["google_auth"]
@@ -40,90 +41,26 @@ if "google_auth" in st.secrets:
     except Exception as e:
         st.error(f"การเชื่อมต่อผิดพลาด: {e}")
 
-# --- 3. Sidebar (เมนูด้านข้าง) ---
+# --- 3. Sidebar (เมนูด้านข้างพร้อมปุ่ม Link) ---
 with st.sidebar:
-    st.markdown("### 🏠 หน้าหลัก") # หัวข้อหน้าหลัก
+    # หัวข้อหน้าหลัก
+    st.markdown("### 🏠 HOME")
+    
     page = st.selectbox(
         "เลือกเมนูการใช้งาน:",
         ["หน้าสำหรับ User", "หน้าสำหรับ Admin"]
     )
-    # เส้นคั่นสีน้ำเงิน
-    st.markdown("<hr style='border-top: 2px solid #1E3A8A; margin-top: 0px;'>", unsafe_allow_html=True)
     
-    # ✅ ย้ายโลโก้มาไว้ตรงนี้ (ใต้เส้นคั่นใน Sidebar)
-    if os.path.exists("logo.png"):
-        st.markdown("<br>", unsafe_allow_html=True)
-        # แสดงรูปภาพและทำเป็นลิงก์ไปในตัว
-        st.image("logo.png", use_container_width=True)
-        st.link_button("🌐 ไปที่เว็บไซต์สำนักงาน", "https://oce.rmutk.ac.th", use_container_width=True)
+    # เส้นคั่น
+    st.markdown("<hr style='border-top: 2px solid #000000; margin-top: 0px;'>", unsafe_allow_html=True)
+    
+    # ✅ ส่วนปุ่ม Link ทั้ง 3 ปุ่ม (ใช้ st.link_button เพื่อความสวยงาม)
+    st.markdown("🔗 **ลิงก์ที่เกี่ยวข้อง**")
+    
+    st.link_button("🏫 มทร.กรุงเทพ (RMUTK)", "https://rmutk.ac.th", use_container_width=True)
+    
+    st.link_button("🏢 สำนักงานสหกิจศึกษา (OCE)", "https://oce.rmutk.ac.th/", use_container_width=True)
+    
+    st.link_button("📘 วารสารสหกิจก้าวหน้า (JCEP)", "https://jcep.rmutk.ac.th/", use_container_width=True)
 
 # --- 4. หน้าสำหรับ User ---
-if page == "หน้าสำหรับ User":
-    # ✅ กลับมาใช้ข้อความหัวเรื่อง (เอารูปแบนเนอร์ออกตามสั่ง)
-    st.header("📘 ระบบจัดเก็บข้อมูลวารสารสหกิจศึกษาก้าวหน้า")
-    st.write("---")
-
-    try:
-        next_id = len(sheet.get_all_values())
-    except: next_id = 1
-
-    with st.form("user_form"):
-        st.info(f"📍 ลำดับที่: {next_id}")
-        col_p, col_f, col_l = st.columns([1, 2, 2])
-        prefix = col_p.selectbox("คำนำหน้า", ["นาย", "นางสาว", "ผศ.", "รศ.", "ศ."])
-        f_name = col_f.text_input("ชื่อ")
-        l_name = col_l.text_input("นามสกุล")
-        
-        uni = st.text_input("มหาวิทยาลัย / สถาบัน")
-        col_fac, col_maj = st.columns(2)
-        faculty = col_fac.text_input("คณะ")
-        major = col_maj.text_input("สาขาวิชา")
-        org = st.text_input("สังกัด / หน่วยงาน")
-        addr = st.text_area("ที่อยู่สำหรับการจัดส่งเอกสาร")
-        
-        col_tel, col_email = st.columns(2)
-        phone = col_tel.text_input("เบอร์โทรศัพท์")
-        email_u = col_email.text_input("E-mail")
-
-        st.write("---")
-        # ประเภทบทความ (Radio)
-        article_type = st.radio("**12. ประเภทบทความ**", ["บทความวิจัย", "บทความวิชาการ", "อื่นๆ"], horizontal=True)
-        other_detail = st.text_input("โปรดระบุ (หากเลือกอื่นๆ)")
-
-        st.write("---")
-        # แนบไฟล์
-        up_file = st.file_uploader("13. แนบไฟล์ (PDF/Word)", type=["pdf", "docx", "doc"])
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        btn1, btn2, _ = st.columns([1, 1, 4])
-        
-        if btn1.form_submit_button("ส่งข้อมูล", type="primary"):
-            if up_file:
-                final_type = article_type if article_type != "อื่นๆ" else f"อื่นๆ: {other_detail}"
-                sheet.append_row([next_id, prefix, f_name, l_name, uni, faculty, major, org, addr, phone, email_u, final_type, up_file.name])
-                st.success("🎉 บันทึกข้อมูลเรียบร้อย!")
-            else: st.error("⚠️ กรุณาแนบไฟล์ก่อนส่ง")
-        
-        if btn2.form_submit_button("ยกเลิก", type="secondary"):
-            st.rerun()
-
-# --- 5. หน้าสำหรับ Admin ---
-elif page == "หน้าสำหรับ Admin":
-    if not st.session_state.get('logged_in', False):
-        st.subheader("🔐 Login Admin")
-        u_in = st.text_input("Username")
-        p_in = st.text_input("Password", type="password")
-        if st.button("Sign In"):
-            if u_in == "bannawit.s" and p_in == "adminjcep":
-                st.session_state.logged_in = True
-                st.rerun()
-    else:
-        if st.button("Logout"): 
-            st.session_state.logged_in = False
-            st.rerun()
-        st.header("🖥️ Dashboard")
-        df = pd.DataFrame(sheet.get_all_records())
-        st.dataframe(df, use_container_width=True)
-
-# --- 6. Footer สีเขียว ---
-st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
