@@ -50,4 +50,71 @@ with st.sidebar:
     page = st.selectbox("เลือกเมนูการใช้งาน:", ["หน้าสำหรับ User", "หน้าสำหรับ Admin"])
     st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
     st.link_button("🏫 มทร.กรุงเทพ (RMUTK)", "https://rmutk.ac.th", use_container_width=True)
-    st.
+    st.link_button("🏢 สำนักงานสหกิจศึกษา (OCE)", "https://oce.rmutk.ac.th/", use_container_width=True)
+    st.link_button("📘 วารสารสหกิจก้าวหน้า (JCEP)", "https://jcep.rmutk.ac.th/", use_container_width=True)
+
+# --- 5. หน้าสำหรับ User ---
+if page == "หน้าสำหรับ User":
+    st.image("logo.png", width=300)
+    with st.form("user_form", clear_on_submit=True):
+        st.subheader("📝 ฟอร์มส่งวารสาร")
+        f_name = st.text_input("ชื่อ-นามสกุล")
+        up_file = st.file_uploader("แนบไฟล์", type=["pdf", "docx"])
+        if st.form_submit_button("ส่งข้อมูล", type="primary"):
+            if up_file and f_name:
+                sheet.append_row([f_name, up_file.name])
+                show_message_modal("บันทึกข้อมูลเรียบร้อยแล้ว!")
+            else:
+                st.warning("กรุณากรอกข้อมูลให้ครบ")
+
+# --- 6. หน้าสำหรับ Admin (ส่วนกลางกลับมาแล้ว!) ---
+elif page == "หน้าสำหรับ Admin":
+    if not st.session_state.get('logged_in', False):
+        u_in, p_in = st.text_input("Username"), st.text_input("Password", type="password")
+        if st.button("Sign In"):
+            if u_in == "bannawit.s" and p_in == "adminjcep":
+                st.session_state.logged_in = True
+                st.rerun()
+    else:
+        # ✅ ส่วนหัว Dashboard
+        col_title, col_add, col_out = st.columns([6, 1.5, 1.5])
+        col_title.header("🖥️ Dashboard")
+        if col_add.button("➕ เพิ่ม Admin", type="primary"):
+            show_message_modal("ฟังก์ชันนี้กำลังพัฒนา")
+        if col_out.button("🚪 ออกจากระบบ", type="secondary"):
+            st.session_state.logged_in = False
+            st.rerun()
+
+        st.divider()
+
+        # ✅ ข้อมูลส่วนกลาง (Main Area)
+        try:
+            data = sheet.get_all_records()
+            if data:
+                df = pd.DataFrame(data)
+                
+                # 1. แสดงตารางข้อมูลวารสาร
+                st.subheader("📊 ตารางข้อมูลวารสาร")
+                st.dataframe(df, use_container_width=True)
+                
+                st.write("---")
+                
+                # 2. แสดงระบบดาวน์โหลดไฟล์
+                st.subheader("📁 ดาวน์โหลดไฟล์")
+                file_col = df.columns[-1] # คอลัมน์ชื่อไฟล์
+                selected_file = st.selectbox("เลือกไฟล์ที่ต้องการ:", df[file_col].unique())
+                
+                if selected_file:
+                    file_path = f"uploaded_journals/{selected_file}"
+                    if os.path.exists(file_path):
+                        with open(file_path, "rb") as f:
+                            st.download_button(f"💾 ดาวน์โหลด: {selected_file}", f, file_name=selected_file)
+                    else:
+                        st.warning("ไม่พบไฟล์ในระบบ")
+            else:
+                st.info("ยังไม่มีข้อมูล")
+        except Exception as e:
+            st.error(f"ดึงข้อมูลไม่ได้: {e}")
+
+# --- 7. Footer ---
+st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
