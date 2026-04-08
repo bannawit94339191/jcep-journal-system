@@ -1,10 +1,34 @@
 import streamlit as st
 import pandas as pd
 from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
 import gspread
 import io
+import os
+import smtplib
+from email.message import EmailMessage
+
+
+# --- ฟังก์ชันสำหรับส่งอีเมล ---
+def send_email(sender_email, sender_password, receiver_email, subject, body, file_name, file_bytes):
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+    msg.set_content(body)
+
+    # แนบไฟล์ไปกับอีเมล
+    msg.add_attachment(file_bytes, maintype='application', subtype='octet-stream', filename=file_name)
+
+    try:
+        # เชื่อมต่อกับเซิร์ฟเวอร์ Gmail
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(sender_email, sender_password)
+            smtp.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"เกิดข้อผิดพลาดในการส่งอีเมล: {e}")
+        return False
+
 
 # --- 1. ตั้งค่าพื้นฐานและการตกแต่ง CSS ---
 st.set_page_config(page_title="JCEP Journal System", layout="wide")
@@ -18,22 +42,17 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. การเชื่อมต่อ Google Services ---
-# (ดึงข้อมูลจาก Streamlit Secrets เมื่อ Deploy ออนไลน์)
+# --- 2. การเชื่อมต่อ Google Services (เหลือแค่ Sheets) ---
 if "google_auth" in st.secrets:
     info = st.secrets["google_auth"]
     creds = service_account.Credentials.from_service_account_info(info)
-    # ขอบเขตการใช้งาน
-    scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+    # ขอบเขตการใช้งาน (เอา Drive ออก เหลือแค่ Sheets)
+    scope = ['https://www.googleapis.com/auth/spreadsheets']
     creds_with_scope = creds.with_scopes(scope)
 
     # เชื่อมต่อ Sheets
     client = gspread.authorize(creds_with_scope)
-    sheet = client.open("JCEP_Data").sheet1  # เปลี่ยนชื่อไฟล์ให้ตรง
-
-    # เชื่อมต่อ Drive
-    drive_service = build('drive', 'v3', credentials=creds_with_scope)
-    DRIVE_FOLDER_ID = "1O6YiaFonrDWCmdwDr94522qG4iCoIf6M"
+    sheet = client.open("JCEP_Data").sheet1
 
 # --- 3. ระบบจัดการ Session State ---
 if 'logged_in' not in st.session_state:
@@ -47,7 +66,7 @@ def logout():
 
 # --- 4. แถบเมนูด้านข้าง ---
 with st.sidebar:
-    if "logo.png":
+    if os.path.exists("logo.png"):
         st.image("logo.png", width=200)
     st.title("เมนูหลัก")
     page = st.radio("ไปที่หน้า:", ["หน้าสำหรับ User", "หน้าสำหรับ Admin"])
@@ -58,8 +77,11 @@ if page == "หน้าสำหรับ User":
     st.subheader("Journal of Cooperative Education Progress")
 
     # ดึงลำดับล่าสุดจาก Google Sheet
-    existing_data = sheet.get_all_values()
-    next_id = len(existing_data)  # รันเลขต่อจากแถวที่มีอยู่
+    try:
+        existing_data = sheet.get_all_values()
+        next_id = len(existing_data)  # รันเลขต่อจากแถวที่มีอยู่
+    except:
+        next_id = 1
 
     with st.form("user_form"):
         st.text_input("1. ลำดับที่", value=str(next_id), disabled=True)
@@ -90,18 +112,45 @@ if page == "หน้าสำหรับ User":
             cancel = st.form_submit_button("Cancel", type="secondary")
 
         if submit:
-            file_link = ""
+            file_link = "ไม่มีไฟล์แนบ"
+
             if up_file:
-                # อัปโหลดไฟล์ไป Google Drive
-                file_metadata = {'name': up_file.name, 'parents': [DRIVE_FOLDER_ID]}
-                media = MediaIoBaseUpload(io.BytesIO(up_file.getvalue()), mimetype=up_file.type)
-                file = drive_service.files().create(body=file_metadata, media_body=media,
-                                                    fields='id, webViewLink').execute()
-                file_link = file.get('webViewLink')
+                # --- ส่วนที่ 1: เซฟลงเครื่อง (Local Folder) ---
+                save_dir = "uploaded_journals"
+                if not os.path.exists(save_dir):
+                    os.makedirs(save_dir)  # สร้างโฟลเดอร์ถ้ายังไม่มี
+
+                file_path = os.path.join(save_dir, up_file.name)
+
+                # เขียนไฟล์ลงไปในโฟลเดอร์
+                with open(file_path, "wb") as f:
+                    f.write(up_file.getvalue())
+
+                file_link = f"บันทึกในเครื่อง: {file_path}"
+
+                # --- ส่วนที่ 2: ส่งเข้าอีเมล ---
+                if "email_config" in st.secrets:
+                    sender_email = st.secrets["email_config"]["sender_email"]
+                    sender_password = st.secrets["email_config"]["sender_password"]
+                    receiver_email = st.secrets["email_config"]["receiver_email"]
+
+                    subject = f"มีวารสารใหม่ส่งเข้ามาจาก: {name}"
+                    body = f"รายละเอียดผู้ส่ง:\nชื่อ: {name}\nสถาบัน: {uni}\nประเภทบทความ: {final_type}\nเบอร์โทร: {phone}\nอีเมล: {email}"
+
+                    with st.spinner('กำลังส่งข้อมูลและไฟล์เข้าอีเมล...'):
+                        is_sent = send_email(sender_email, sender_password, receiver_email, subject, body, up_file.name,
+                                             up_file.getvalue())
+
+                    if is_sent:
+                        file_link = "ส่งเข้าอีเมลสำเร็จแล้ว"
+                    else:
+                        file_link = "บันทึกในเครื่องแล้ว (แต่ส่งอีเมลไม่สำเร็จ)"
+                else:
+                    st.warning("ระบบเซฟไฟล์ลงเครื่องแล้ว แต่ยังไม่ได้ตั้งค่า Secrets สำหรับส่งอีเมล")
 
             # บันทึกลง Google Sheet
             sheet.append_row([next_id, name, uni, faculty, major, org, addr, phone, email, final_type, file_link])
-            st.success("ส่งข้อมูลสำเร็จ!")
+            st.success("ส่งข้อมูลสำเร็จ! ระบบได้บันทึกข้อมูลและไฟล์เรียบร้อยแล้ว 🎉")
 
 # --- 6. หน้าสำหรับ Admin ---
 elif page == "หน้าสำหรับ Admin":
@@ -132,5 +181,4 @@ elif page == "หน้าสำหรับ Admin":
         csv = data.to_csv(index=False).encode('utf-8-sig')
         st.download_button("ดาวน์โหลดข้อมูลทั้งหมด", data=csv, file_name="journal_summary.csv", mime="text/csv")
 
-# --- Footer ---
-st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
+# --- Footer
