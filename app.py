@@ -9,10 +9,15 @@ st.set_page_config(page_title="JCEP Journal System", layout="wide")
 
 st.markdown("""
     <style>
+    /* ตกแต่งปุ่ม Dashboard */
     .stButton>button[kind="primary"] { background-color: #1E3A8A; color: white; border-radius: 8px; border: none; }
     .stButton>button[kind="secondary"] { background-color: #dc3545; color: white; border-radius: 8px; border: none; }
+    
+    /* Sidebar */
     section[data-testid="stSidebar"] { background-color: #F0F9FF; }
     .sidebar-divider { border-top: 3px solid #000000; margin: 10px 0; }
+    
+    /* Footer */
     .footer { 
         position: fixed; left: 0; bottom: 0; width: 100%; 
         background-color: #28a745; color: white; text-align: center; 
@@ -21,7 +26,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Popup แจ้งเตือนกลางจอ ---
+# --- 2. ฟังก์ชัน Popup แจ้งเตือนกลางจอ (Formal Modal) ---
 @st.dialog("🔔 การแจ้งเตือนจากระบบ")
 def show_message_modal(text):
     st.write(text)
@@ -54,20 +59,20 @@ if page == "หน้าสำหรับ User":
     with st.form("user_form", clear_on_submit=True):
         st.subheader("📝 ฟอร์มส่งวารสาร")
         f_name = st.text_input("ชื่อ-นามสกุล")
-        up_file = st.file_uploader("แนบไฟล์", type=["pdf", "docx"])
+        up_file = st.file_uploader("แนบไฟล์บทความ", type=["pdf", "docx"])
         if st.form_submit_button("ส่งข้อมูล", type="primary"):
             if up_file and f_name:
-                # บันทึกไฟล์ลงโฟลเดอร์
+                # บันทึกไฟล์ลง Folder
                 if not os.path.exists("uploaded_journals"): os.makedirs("uploaded_journals")
                 with open(os.path.join("uploaded_journals", up_file.name), "wb") as f:
                     f.write(up_file.getbuffer())
-                # บันทึกลง Sheet
+                # บันทึกลง Google Sheet
                 sheet.append_row([f_name, up_file.name])
-                show_message_modal("บันทึกข้อมูลเรียบร้อยแล้ว!")
+                show_message_modal("ระบบได้รับข้อมูลและไฟล์ของท่านเรียบร้อยแล้ว")
             else:
-                st.warning("กรุณากรอกข้อมูลให้ครบ")
+                st.warning("กรุณากรอกข้อมูลให้ครบถ้วน")
 
-# --- 6. หน้าสำหรับ Admin (ย้ายปุ่มดาวน์โหลดเข้าตาราง) ---
+# --- 6. หน้าสำหรับ Admin (กู้คืนระบบเดิมทั้งหมด) ---
 elif page == "หน้าสำหรับ Admin":
     if not st.session_state.get('logged_in', False):
         u_in, p_in = st.text_input("Username"), st.text_input("Password", type="password")
@@ -76,54 +81,50 @@ elif page == "หน้าสำหรับ Admin":
                 st.session_state.logged_in = True
                 st.rerun()
     else:
-        # ✅ Dashboard Header
-        col_title, col_add, col_out = st.columns([6, 1.5, 1.5])
-        col_title.header("🖥️ Dashboard")
+        # ✅ Dashboard Header: ปุ่ม Add Admin ชิดกับ Logout
+        col_h, col_add, col_logout = st.columns([6, 1.5, 1.5])
+        col_h.header("🖥️ Dashboard")
         if col_add.button("➕ เพิ่ม Admin", type="primary"):
-            show_message_modal("ระบบจัดการ Admin กำลังอยู่ระหว่างการพัฒนา")
-        if col_out.button("🚪 ออกจากระบบ", type="secondary"):
+            show_message_modal("ฟังก์ชันนี้กำลังพัฒนา กรุณาจัดการผ่าน Google Sheets")
+        if col_logout.button("🚪 ออกจากระบบ", type="secondary"):
             st.session_state.logged_in = False
             st.rerun()
 
         st.divider()
 
-        # ✅ การแสดงผลตารางพร้อมปุ่มดาวน์โหลดในตัว
-        st.subheader("📊 รายการส่งวารสาร (กดดาวน์โหลดได้ที่ชื่อไฟล์)")
+        # ✅ ส่วนกลาง: แสดงตารางข้อมูลวารสาร
         try:
             data = sheet.get_all_records()
             if data:
                 df = pd.DataFrame(data)
-                
-                # แสดงตารางหลักก่อน (แบบ Read-only)
+                st.subheader("📊 ตารางข้อมูลวารสาร")
                 st.dataframe(df, use_container_width=True)
                 
-                st.markdown("---")
-                st.subheader("📁 จัดการไฟล์รายบุคคล")
+                st.write("---")
                 
-                # วนลูปสร้างแถวปุ่มดาวน์โหลด (ย้ายจาก Dropdown มาเป็นรายบรรทัด)
-                for index, row in df.iterrows():
-                    file_name = str(row[df.columns[-1]]) # คอลัมน์สุดท้ายคือชื่อไฟล์
-                    col_info, col_btn = st.columns([7, 3])
-                    
-                    with col_info:
-                        st.write(f"📄 **{row[df.columns[0]]}** ({file_name})") # แสดงชื่อผู้ส่ง
-                    
-                    with col_btn:
-                        file_path = f"uploaded_journals/{file_name}"
-                        if os.path.exists(file_path):
-                            with open(file_path, "rb") as f:
-                                st.download_button(
-                                    label=f"💾 โหลดไฟล์ของ {row[df.columns[0]]}",
-                                    data=f,
-                                    file_name=file_name,
-                                    key=f"btn_{index}" # Key ต้องไม่ซ้ำกัน
-                                )
-                        else:
-                            st.caption("🚫 ไม่พบไฟล์ในเซิร์ฟเวอร์")
+                # ✅ ส่วนท้าย: ระบบดาวน์โหลดแบบเดิม (Selectbox + Button)
+                st.subheader("📁 ดาวน์โหลดไฟล์")
+                file_col = df.columns[-1] # คอลัมน์สุดท้ายคือชื่อไฟล์
+                file_options = df[file_col].unique()
+                
+                selected_file = st.selectbox("เลือกไฟล์ที่ต้องการดาวน์โหลด:", file_options)
+                
+                if selected_file:
+                    file_path = f"uploaded_journals/{selected_file}"
+                    if os.path.exists(file_path):
+                        with open(file_path, "rb") as f:
+                            st.download_button(
+                                label=f"💾 ดาวน์โหลดไฟล์: {selected_file}",
+                                data=f,
+                                file_name=str(selected_file),
+                                mime="application/octet-stream"
+                            )
+                    else:
+                        st.warning(f"⚠️ ไม่พบไฟล์ {selected_file} ในโฟลเดอร์ระบบ")
             else:
-                st.info("ยังไม่มีข้อมูลในฐานข้อมูล")
+                st.info("ยังไม่มีข้อมูลวารสารในระบบ")
         except Exception as e:
-            st.error(f"ไม่สามารถดึงข้อมูลได้: {e}")
+            st.error(f"เกิดข้อผิดพลาดในการดึงข้อมูล: {e}")
 
 # --- 7. Footer ---
 st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
