@@ -80,7 +80,7 @@ if page == "หน้าสำหรับ User":
     # ✅ ใส่รูปภาพใหม่แทนที่ข้อความหัวข้อเดิม
     if os.path.exists("coop_logo.png"):
         st.markdown('<div class="user-header-logo">', unsafe_allow_html=True)
-        st.image("coop_logo.png", width=350) # ปรับขนาดรูปได้ตามความเหมาะสม
+        st.image("coop_logo.gif", width=350) # ปรับขนาดรูปได้ตามความเหมาะสม
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.header("📘 ระบบจัดเก็บข้อมูลวารสารสหกิจศึกษาก้าวหน้า")
