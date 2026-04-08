@@ -17,25 +17,31 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. การเชื่อมต่อ Google Services (เหลือแค่ Sheets) ---
+# --- 2. การเชื่อมต่อ Google Services (Sheets และ Drive สำหรับค้นหาชื่อไฟล์) ---
 if "google_auth" in st.secrets:
     info = st.secrets["google_auth"]
     creds = service_account.Credentials.from_service_account_info(info)
-    # ขอบเขตการใช้งาน (เหลือแค่ Sheets)
-    scope = ['https://www.googleapis.com/auth/spreadsheets']
+    
+    # แก้ไข: เพิ่ม Scope ของ Drive กลับเข้ามา เพื่อให้ gspread สามารถค้นหาชื่อไฟล์ "JCEP_Data" ได้
+    scope = [
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive'
+    ]
     creds_with_scope = creds.with_scopes(scope)
 
     # เชื่อมต่อ Sheets
     client = gspread.authorize(creds_with_scope)
-    sheet = client.open("JCEP_Data").sheet1  
+    sheet = client.open("JCEP_Data").sheet1
 
 # --- 3. ระบบจัดการ Session State ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
+
 def logout():
     st.session_state.logged_in = False
     st.rerun()
+
 
 # --- 4. แถบเมนูด้านข้าง ---
 with st.sidebar:
@@ -86,19 +92,19 @@ if page == "หน้าสำหรับ User":
 
         if submit:
             file_link = "ไม่มีไฟล์แนบ"
-            
+
             if up_file:
                 # --- เซฟลงเครื่อง (Local Folder) ---
                 save_dir = "uploaded_journals"
                 if not os.path.exists(save_dir):
-                    os.makedirs(save_dir) # สร้างโฟลเดอร์ถ้ายังไม่มี
-                
+                    os.makedirs(save_dir)  # สร้างโฟลเดอร์ถ้ายังไม่มี
+
                 file_path = os.path.join(save_dir, up_file.name)
-                
+
                 # เขียนไฟล์ลงไปในโฟลเดอร์
                 with open(file_path, "wb") as f:
                     f.write(up_file.getvalue())
-                
+
                 # บันทึก Path ของไฟล์ไว้เพื่อไปลง Google Sheet
                 file_link = f"บันทึกในเครื่อง: {file_path}"
 
