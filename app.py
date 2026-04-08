@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from google.oauth2 import service_account
 import gspread
-import io
 import os
 
 # --- 1. ตั้งค่าพื้นฐานและการตกแต่ง CSS ---
@@ -10,23 +9,41 @@ st.set_page_config(page_title="JCEP Journal System", layout="wide")
 
 st.markdown("""
     <style>
+    /* ปุ่ม Send สีเขียว */
     .stButton>button[kind="primary"] { background-color: #28a745; color: white; border: none; }
+    /* ปุ่ม Cancel สีแดง */
     .stButton>button[kind="secondary"] { background-color: #dc3545; color: white; border: none; }
-    .footer { position: fixed; left: 0; bottom: 0; width: 100%; text-align: center; padding: 10px; background: white; font-weight: bold;}
+    
+    /* ปรับแต่ง Footer สีเขียว ตัวหนังสือขาว */
+    .footer { 
+        position: fixed; 
+        left: 0; 
+        bottom: 0; 
+        width: 100%; 
+        background-color: #28a745; 
+        color: white; 
+        text-align: center; 
+        padding: 10px; 
+        font-weight: bold;
+        z-index: 100;
+    }
+    .main { padding-bottom: 70px; } /* เว้นที่ว่างด้านล่างไม่ให้ Footer ทับเนื้อหา */
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. การเชื่อมต่อ Google Services (Sheets และ Drive) ---
+# --- 2. การเชื่อมต่อ Google Services (Sheets & Drive) ---
 if "google_auth" in st.secrets:
-    info = st.secrets["google_auth"]
-    creds = service_account.Credentials.from_service_account_info(info)
-    # ใส่ Scope ทั้ง Sheets และ Drive เพื่อให้ gspread ค้นหาชื่อไฟล์เจอ
-    scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-    creds_with_scope = creds.with_scopes(scope)
-    client = gspread.authorize(creds_with_scope)
-    sheet = client.open("JCEP_Data").sheet1
+    try:
+        info = st.secrets["google_auth"]
+        creds = service_account.Credentials.from_service_account_info(info)
+        scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+        creds_with_scope = creds.with_scopes(scope)
+        client = gspread.authorize(creds_with_scope)
+        sheet = client.open("JCEP_Data").sheet1
+    except Exception as e:
+        st.error(f"การเชื่อมต่อ Google Sheets ผิดพลาด: {e}")
 
-# --- 3. ระบบจัดการ Session State ---
+# --- 3. ระบบจัดการ Session State สำหรับ Admin ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -41,12 +58,12 @@ with st.sidebar:
     st.title("เมนูหลัก")
     page = st.radio("ไปที่หน้า:", ["หน้าสำหรับ User", "หน้าสำหรับ Admin"])
 
-# --- 5. หน้าสำหรับ User ---
+# --- 5. หน้าสำหรับ User (ฟอร์มกรอกข้อมูล 13 ข้อ) ---
 if page == "หน้าสำหรับ User":
     st.header("ระบบจัดเก็บข้อมูลวารสารสหกิจศึกษาก้าวหน้า")
     st.subheader("Journal of Cooperative Education Progress")
 
-    # ดึงลำดับล่าสุด
+    # 1. ลำดับที่ (รันอัตโนมัติ)
     try:
         existing_data = sheet.get_all_values()
         next_id = len(existing_data)
@@ -54,24 +71,65 @@ if page == "หน้าสำหรับ User":
         next_id = 1
 
     with st.form("user_form"):
-        st.text_input("1. ลำดับที่", value=str(next_id), disabled=True)
-        name = st.text_input("2. ชื่อ - นามสกุล")
-        uni = st.text_input("3. มหาวิทยาลัย / สถาบัน")
-        faculty = st.text_input("4. คณะ")
-        major = st.text_input("5. สาขาวิชา")
-        org = st.text_input("6. สังกัด / หน่วยงาน")
-        addr = st.text_area("7. ที่อยู่")
-        phone = st.text_input("8. ช่องทางการติดต่อกลับ (เบอร์โทร)")
-        email = st.text_input("9. ช่องทางการติดต่อกลับ (E-mail)")
-        article_type = st.radio("10. ประเภทบทความ", ["บทความวิจัย", "บทความวิชาการ", "อื่นๆ"])
-        up_file = st.file_uploader("11. แนบไฟล์วารสาร")
+        st.info(f"1. ลำดับที่: {next_id} (ระบบบันทึกให้อัตโนมัติ)")
+        
+        # 2-4. ชื่อ-นามสกุล
+        col_prefix, col_fname, col_lname = st.columns([1, 2, 2])
+        with col_prefix:
+            prefix = st.selectbox("2. คำนำหน้า", ["นาย", "นางสาว", "ผู้ช่วยศาสตราจารย์", "รองศาสตราจารย์", "ศาสตราจารย์"])
+        with col_fname:
+            first_name = st.text_input("3. ชื่อ")
+        with col_lname:
+            last_name = st.text_input("4. นามสกุล")
+            
+        # 5-8. ข้อมูลหน่วยงาน
+        uni = st.text_input("5. มหาวิทยาลัย / สถาบัน")
+        faculty = st.text_input("6. คณะ")
+        major = st.text_input("7. สาขาวิชา")
+        org = st.text_input("8. สังกัด / หน่วยงาน")
+        
+        # 9. ที่อยู่
+        addr = st.text_area("9. ที่อยู่")
+        
+        # 10-11. การติดต่อ
+        col_tel, col_email = st.columns(2)
+        with col_tel:
+            phone = st.text_input("10. ช่องทางการติดต่อกลับ (เบอร์โทร)")
+        with col_email:
+            email_user = st.text_input("11. ช่องทางการติดต่อกลับ (E-mail)")
 
-        submit = st.form_submit_button("Send", type="primary")
+        # 12. ประเภทบทความ (Checkbox)
+        st.write("12. ประเภทบทความ")
+        c1, c2, c3 = st.columns(3)
+        type_res = c1.checkbox("บทความวิจัย")
+        type_acad = c2.checkbox("บทความวิชาการ")
+        type_other = c3.checkbox("อื่นๆ")
+        
+        other_detail = ""
+        if type_other:
+            other_detail = st.text_input("โปรดระบุประเภทบทความอื่นๆ (ถ้ามี)")
+
+        # 13. แนบไฟล์
+        up_file = st.file_uploader("13. แนบไฟล์วารสาร (PDF หรือ Word)", type=["pdf", "docx", "doc"])
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        # ปุ่ม Send และ Cancel
+        btn_col1, btn_col2, _ = st.columns([1, 1, 4])
+        with btn_col1:
+            submit = st.form_submit_button("Send", type="primary")
+        with btn_col2:
+            cancel = st.form_submit_button("Cancel", type="secondary")
 
         if submit:
-            file_link = "ไม่มีไฟล์แนบ"
+            # รวมประเภทบทความ
+            selected_types = []
+            if type_res: selected_types.append("บทความวิจัย")
+            if type_acad: selected_types.append("บทความวิชาการ")
+            if type_other: selected_types.append(f"อื่นๆ ({other_detail})")
+            final_type = ", ".join(selected_types)
+
             if up_file:
-                # สร้างโฟลเดอร์เก็บไฟล์ในเครื่องเซิร์ฟเวอร์
+                # บันทึกไฟล์ลงเครื่อง (Server)
                 save_dir = "uploaded_journals"
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)
@@ -79,13 +137,19 @@ if page == "หน้าสำหรับ User":
                 file_path = os.path.join(save_dir, up_file.name)
                 with open(file_path, "wb") as f:
                     f.write(up_file.getvalue())
-                file_link = f"Local: {up_file.name}"
 
-            # บันทึกลง Google Sheet
-            sheet.append_row([next_id, name, uni, faculty, major, org, addr, phone, email, article_type, file_link])
-            st.success("ส่งข้อมูลสำเร็จ! ระบบได้บันทึกไฟล์ไว้เรียบร้อยแล้ว 🎉")
+                # บันทึกลง Google Sheet
+                # ลำดับคอลัมน์: ID, คำนำหน้า, ชื่อ, นามสกุล, มหาลัย, คณะ, สาขา, สังกัด, ที่อยู่, เบอร์โทร, อีเมล, ประเภท, ชื่อไฟล์
+                sheet.append_row([
+                    next_id, prefix, first_name, last_name, uni, 
+                    faculty, major, org, addr, phone, 
+                    email_user, final_type, up_file.name
+                ])
+                st.success(f"ส่งข้อมูลสำเร็จ! ระบบบันทึกไฟล์ {up_file.name} เรียบร้อยแล้ว")
+            else:
+                st.error("กรุณาแนบไฟล์วารสารก่อนกด Send")
 
-# --- 6. หน้าสำหรับ Admin ---
+# --- 6. หน้าสำหรับ Admin (ตารางข้อมูล & ปุ่มดาวน์โหลด) ---
 elif page == "หน้าสำหรับ Admin":
     if not st.session_state.logged_in:
         st.subheader("Login สำหรับผู้ดูแลระบบ")
@@ -98,41 +162,35 @@ elif page == "หน้าสำหรับ Admin":
             else:
                 st.error("ข้อมูลไม่ถูกต้อง")
     else:
-        col_title, col_logout = st.columns([5, 1])
-        with col_logout:
-            if st.button("Logout"):
-                logout()
-
+        if st.button("Logout"):
+            logout()
+        
         st.header("Admin Dashboard")
-        
-        # ส่วนที่ 1: ตารางข้อมูลจาก Google Sheet
-        st.subheader("📊 ข้อมูลการสมัครทั้งหมด")
-        data = pd.DataFrame(sheet.get_all_records())
-        st.dataframe(data)
+        st.subheader("📊 ข้อมูลการส่งวารสารทั้งหมด")
+        try:
+            data = pd.DataFrame(sheet.get_all_records())
+            st.dataframe(data)
+        except:
+            st.info("ยังไม่มีข้อมูลในระบบ")
 
-        # ส่วนที่ 2: ปุ่มดาวน์โหลดไฟล์ (📁 ไฟล์ที่ถูกเก็บไว้ในเครื่อง)
         st.divider()
-        st.subheader("📁 จัดการไฟล์ที่อัปโหลดเข้าเครื่อง")
-        
+        st.subheader("📁 ดาวน์โหลดไฟล์จากเครื่อง")
         save_dir = "uploaded_journals"
         if os.path.exists(save_dir):
             files = os.listdir(save_dir)
             if files:
-                selected_file = st.selectbox("เลือกไฟล์ที่ต้องการดาวน์โหลดลงเครื่องคุณ:", files)
-                file_path = os.path.join(save_dir, selected_file)
-                
-                with open(file_path, "rb") as f:
+                selected_file = st.selectbox("เลือกไฟล์ที่ต้องการดาวน์โหลด:", files)
+                with open(os.path.join(save_dir, selected_file), "rb") as f:
                     st.download_button(
                         label=f"💾 ดาวน์โหลดไฟล์ {selected_file}",
                         data=f,
                         file_name=selected_file,
-                        mime="application/octet-stream",
-                        type="primary"
+                        mime="application/octet-stream"
                     )
             else:
-                st.info("ยังไม่มีไฟล์ที่ถูกอัปโหลดเข้ามาในโฟลเดอร์")
+                st.info("ยังไม่มีไฟล์ถูกอัปโหลดเข้ามา")
         else:
-            st.info("ระบบยังไม่ได้สร้างโฟลเดอร์สำหรับเก็บไฟล์ (จะสร้างเมื่อมีการส่งไฟล์ครั้งแรก)")
+            st.info("โฟลเดอร์เก็บไฟล์จะถูกสร้างเมื่อมีการส่งไฟล์ครั้งแรก")
 
-# --- Footer ---
+# --- 7. Footer สีเขียว ตัวหนังสือขาว ---
 st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
