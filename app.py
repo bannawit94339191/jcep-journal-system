@@ -72,11 +72,11 @@ with st.sidebar:
         st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown("<hr style='border-top: 2px solid #1E3A8A;'>", unsafe_allow_html=True)
-    st.markdown("### 🧭 นำทางระบบ")
+    st.markdown("### 🧭 เมนู")
     
     # แก้ไขจุดนี้: เปลี่ยนจาก radio เป็น selectbox (Dropdown)
     page = st.selectbox(
-        "กรุณาเลือกหน้าที่ต้องการ:",
+        "กรุณาเลือกเมนูที่ต้องการ:",
         ["หน้าสำหรับ User", "หน้าสำหรับ Admin"],
         index=0
     )
