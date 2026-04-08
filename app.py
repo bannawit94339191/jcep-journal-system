@@ -30,6 +30,7 @@ if "google_auth" in st.secrets:
         client = gspread.authorize(creds_with_scope)
         spreadsheet = client.open("JCEP_Data")
         
+        # เชื่อมต่อแผ่นงานตามชื่อ (ย้ายตำแหน่งได้ ข้อมูลไม่สลับ)
         try:
             sheet = spreadsheet.worksheet("Data_2026")
         except:
@@ -80,18 +81,18 @@ if page == "หน้าสำหรับ User":
         phone = st.text_input("10. เบอร์โทรศัพท์")
         email_u = st.text_input("11. E-mail")
 
-        # แก้ไขจุดที่ 1: ใช้ Radio แทน Checkbox เพื่อให้เลือกได้เพียงอย่างเดียว
+        # แก้ไข: ประเภทบทความ (ใช้ Radio ให้เลือกได้อันเดียว)
         st.write("12. ประเภทบทความ")
-        article_type_choice = st.radio(
+        article_type = st.radio(
             "โปรดเลือกประเภทบทความ", 
             ["บทความวิจัย", "บทความวิชาการ", "อื่นๆ"],
-            horizontal=True
+            horizontal=True,
+            key="type_radio"
         )
         
-        # แก้ไขจุดที่ 2: ถ้าเลือกอื่นๆ ให้แสดงช่องกรอก
-        other_detail = ""
-        if article_type_choice == "อื่นๆ":
-            other_detail = st.text_input("โปรดระบุประเภทบทความอื่นๆ")
+        # แก้ไข: ช่องกรอก "อื่นๆ" จะปรากฏเมื่อเลือก radio "อื่นๆ"
+        # หมายเหตุ: ใน st.form ช่องนี้จะโผล่ตลอดแต่เราจะเช็คค่าตอนส่ง
+        other_detail = st.text_input("ระบุประเภทบทความอื่นๆ (หากเลือกข้อ อื่นๆ)")
 
         up_file = st.file_uploader("13. แนบไฟล์ (PDF/Word)", type=["pdf", "docx", "doc"])
 
@@ -100,71 +101,16 @@ if page == "หน้าสำหรับ User":
         
         if btn1.form_submit_button("Send", type="primary"):
             if up_file:
+                # จัดการประเภทบทความ
+                final_type = article_type
+                if article_type == "อื่นๆ":
+                    if other_detail.strip() != "":
+                        final_type = f"อื่นๆ: {other_detail}"
+                    else:
+                        st.error("กรุณาระบุรายละเอียดในช่อง อื่นๆ")
+                        st.stop()
+
                 if not os.path.exists("uploaded_journals"): os.makedirs("uploaded_journals")
                 with open(os.path.join("uploaded_journals", up_file.name), "wb") as f: f.write(up_file.getvalue())
                 
-                # เตรียมข้อมูลประเภทบทความ
-                final_type = article_type_choice
-                if article_type_choice == "อื่นๆ" and other_detail:
-                    final_type = f"อื่นๆ: {other_detail}"
-                
-                sheet.append_row([next_id, prefix, f_name, l_name, uni, faculty, major, org, addr, phone, email_u, final_type, up_file.name])
-                st.success("บันทึกข้อมูลและส่งไฟล์เรียบร้อยแล้ว!")
-            else: st.error("กรุณาแนบไฟล์ก่อนกด Send")
-        
-        if btn2.form_submit_button("Cancel", type="secondary"):
-            st.rerun()
-
-# --- 6. หน้าสำหรับ Admin ---
-elif page == "หน้าสำหรับ Admin":
-    if not st.session_state.logged_in:
-        st.subheader("Login สำหรับผู้ดูแลระบบ")
-        u_in = st.text_input("Username")
-        p_in = st.text_input("Password", type="password")
-        if st.button("เข้าสู่ระบบ"):
-            admins = admin_sheet.get_all_records() if admin_sheet else []
-            found = next((a for a in admins if str(a['Username']) == u_in and str(a['Password']) == p_in), None)
-            if found or (u_in == "bannawit.s" and p_in == "adminjcep"):
-                st.session_state.logged_in = True
-                st.session_state.current_admin = found['Name'] if found else "Master Admin"
-                st.session_state.admin_role = found['Role'] if found else "Master Admin"
-                st.rerun()
-            else: st.error("ข้อมูลไม่ถูกต้อง")
-    else:
-        col_n, col_a, col_o = st.columns([3, 1, 1])
-        col_n.write(f"ผู้ใช้: **{st.session_state.current_admin}** | สิทธิ์: **{st.session_state.admin_role}**")
-        if st.session_state.admin_role == "Master Admin":
-            if col_a.button("➕ Add Admin", type="primary"):
-                st.session_state.show_add_form = not st.session_state.show_add_form
-        if col_o.button("Logout", type="secondary"): logout()
-
-        if st.session_state.show_add_form:
-            with st.expander("📝 เพิ่มผู้ดูแลระบบ", expanded=True):
-                with st.form("add_admin_form"):
-                    n_user = st.text_input("Username")
-                    n_pass = st.text_input("Password", type="password")
-                    n_name = st.text_input("ชื่อ-นามสกุล")
-                    n_mail = st.text_input("E-mail")
-                    n_role = st.selectbox("สิทธิ์การใช้งาน", ["Master Admin", "Admin (Viewer)"])
-                    if st.form_submit_button("บันทึก Admin"):
-                        admin_sheet.append_row([n_user, n_pass, n_name, n_mail, n_role])
-                        st.success("สำเร็จ!")
-                        st.session_state.show_add_form = False
-
-        st.header("Admin Dashboard")
-        try:
-            df = pd.DataFrame(sheet.get_all_records())
-            st.dataframe(df, use_container_width=True)
-        except: st.info("ยังไม่มีข้อมูล")
-
-        if st.session_state.admin_role == "Master Admin":
-            st.divider()
-            st.subheader("📁 ดาวน์โหลดไฟล์")
-            if os.path.exists("uploaded_journals"):
-                files = os.listdir("uploaded_journals")
-                if files:
-                    sel = st.selectbox("เลือกไฟล์:", files)
-                    with open(os.path.join("uploaded_journals", sel), "rb") as f:
-                        st.download_button(f"💾 Download {sel}", f, file_name=sel)
-
-st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
+                sheet.append_row([next_
