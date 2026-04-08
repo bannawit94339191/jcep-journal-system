@@ -4,31 +4,6 @@ from google.oauth2 import service_account
 import gspread
 import io
 import os
-import smtplib
-from email.message import EmailMessage
-
-
-# --- ฟังก์ชันสำหรับส่งอีเมล ---
-def send_email(sender_email, sender_password, receiver_email, subject, body, file_name, file_bytes):
-    msg = EmailMessage()
-    msg['Subject'] = subject
-    msg['From'] = sender_email
-    msg['To'] = receiver_email
-    msg.set_content(body)
-
-    # แนบไฟล์ไปกับอีเมล
-    msg.add_attachment(file_bytes, maintype='application', subtype='octet-stream', filename=file_name)
-
-    try:
-        # เชื่อมต่อกับเซิร์ฟเวอร์ Gmail
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(sender_email, sender_password)
-            smtp.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"เกิดข้อผิดพลาดในการส่งอีเมล: {e}")
-        return False
-
 
 # --- 1. ตั้งค่าพื้นฐานและการตกแต่ง CSS ---
 st.set_page_config(page_title="JCEP Journal System", layout="wide")
@@ -46,23 +21,21 @@ st.markdown("""
 if "google_auth" in st.secrets:
     info = st.secrets["google_auth"]
     creds = service_account.Credentials.from_service_account_info(info)
-    # ขอบเขตการใช้งาน (เอา Drive ออก เหลือแค่ Sheets)
+    # ขอบเขตการใช้งาน (เหลือแค่ Sheets)
     scope = ['https://www.googleapis.com/auth/spreadsheets']
     creds_with_scope = creds.with_scopes(scope)
 
     # เชื่อมต่อ Sheets
     client = gspread.authorize(creds_with_scope)
-    sheet = client.open("JCEP_Data").sheet1
+    sheet = client.open("JCEP_Data").sheet1  
 
 # --- 3. ระบบจัดการ Session State ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
-
 def logout():
     st.session_state.logged_in = False
     st.rerun()
-
 
 # --- 4. แถบเมนูด้านข้าง ---
 with st.sidebar:
@@ -113,40 +86,21 @@ if page == "หน้าสำหรับ User":
 
         if submit:
             file_link = "ไม่มีไฟล์แนบ"
-
+            
             if up_file:
-                # --- ส่วนที่ 1: เซฟลงเครื่อง (Local Folder) ---
+                # --- เซฟลงเครื่อง (Local Folder) ---
                 save_dir = "uploaded_journals"
                 if not os.path.exists(save_dir):
-                    os.makedirs(save_dir)  # สร้างโฟลเดอร์ถ้ายังไม่มี
-
+                    os.makedirs(save_dir) # สร้างโฟลเดอร์ถ้ายังไม่มี
+                
                 file_path = os.path.join(save_dir, up_file.name)
-
+                
                 # เขียนไฟล์ลงไปในโฟลเดอร์
                 with open(file_path, "wb") as f:
                     f.write(up_file.getvalue())
-
+                
+                # บันทึก Path ของไฟล์ไว้เพื่อไปลง Google Sheet
                 file_link = f"บันทึกในเครื่อง: {file_path}"
-
-                # --- ส่วนที่ 2: ส่งเข้าอีเมล ---
-                if "email_config" in st.secrets:
-                    sender_email = st.secrets["email_config"]["sender_email"]
-                    sender_password = st.secrets["email_config"]["sender_password"]
-                    receiver_email = st.secrets["email_config"]["receiver_email"]
-
-                    subject = f"มีวารสารใหม่ส่งเข้ามาจาก: {name}"
-                    body = f"รายละเอียดผู้ส่ง:\nชื่อ: {name}\nสถาบัน: {uni}\nประเภทบทความ: {final_type}\nเบอร์โทร: {phone}\nอีเมล: {email}"
-
-                    with st.spinner('กำลังส่งข้อมูลและไฟล์เข้าอีเมล...'):
-                        is_sent = send_email(sender_email, sender_password, receiver_email, subject, body, up_file.name,
-                                             up_file.getvalue())
-
-                    if is_sent:
-                        file_link = "ส่งเข้าอีเมลสำเร็จแล้ว"
-                    else:
-                        file_link = "บันทึกในเครื่องแล้ว (แต่ส่งอีเมลไม่สำเร็จ)"
-                else:
-                    st.warning("ระบบเซฟไฟล์ลงเครื่องแล้ว แต่ยังไม่ได้ตั้งค่า Secrets สำหรับส่งอีเมล")
 
             # บันทึกลง Google Sheet
             sheet.append_row([next_id, name, uni, faculty, major, org, addr, phone, email, final_type, file_link])
@@ -181,4 +135,5 @@ elif page == "หน้าสำหรับ Admin":
         csv = data.to_csv(index=False).encode('utf-8-sig')
         st.download_button("ดาวน์โหลดข้อมูลทั้งหมด", data=csv, file_name="journal_summary.csv", mime="text/csv")
 
-# --- Footer
+# --- Footer ---
+st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
