@@ -50,8 +50,8 @@ with st.sidebar:
 
 # --- 5. หน้าสำหรับ User (ปรับช่องกรอกและลำดับการบันทึก) ---
 if page == "หน้าสำหรับ User":
-    st.markdown("# 📘 วารสารสหกิจศึกษาก้าวหน้า - สำนักงานสหกิจศึกษา")
-    st.markdown("### สJournal of Cooperative Education Progress")
+    st.markdown("# 📘 วารสารสหกิจศึกษาก้าวหน้า")
+    st.markdown("### Journal of Cooperative Education Progress")
     
     with st.form("user_form", clear_on_submit=True):
         st.markdown("#### 📝 ฟอร์มส่งวารสาร")
