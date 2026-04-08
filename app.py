@@ -26,12 +26,17 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. ฟังก์ชัน Popup แจ้งเตือน ---
+# --- 2. ฟังก์ชัน Popup แจ้งเตือน (ปรับปุ่มให้อยู่ตรงกลาง) ---
 @st.dialog("🔔 การแจ้งเตือนจากระบบ")
 def show_message_modal(text):
-    st.write(text)
-    if st.button("ปิดหน้าต่าง"):
-        st.rerun()
+    st.write(f"<div style='text-align: center;'>{text}</div>", unsafe_allow_html=True)
+    st.write("") # เว้นระยะห่าง
+    
+    # สร้าง 3 คอลัมน์เพื่อให้ปุ่มอยู่ในช่องกลาง (ตรงกลางพอดี)
+    left, center, right = st.columns([1, 2, 1])
+    with center:
+        if st.button("ปิดหน้าต่าง", use_container_width=True):
+            st.rerun()
 
 # --- 3. การเชื่อมต่อ Google Services ---
 if "google_auth" in st.secrets:
@@ -62,7 +67,7 @@ if page == "หน้าสำหรับ User":
         st.markdown("#### 📝 ฟอร์มส่งวารสาร")
         
         col_p, col_f, col_l = st.columns([1, 2, 2])
-        prefix = col_p.selectbox("คำนำหน้า", ["นาย", "นางสาว", "ผู้ช้วยศาสตราจารย์", "รองศาสตราจารย์", "ศาสตรจารย์"])
+        prefix = col_p.selectbox("คำนำหน้า", ["นาย", "นางสาว", "ผู้ช่วยศาสตราจารย์", "รองศาสตราจารย์", "ศาสตราจารย์"])
         f_name = col_f.text_input("ชื่อ")
         l_name = col_l.text_input("นามสกุล")
         
@@ -103,7 +108,7 @@ if page == "หน้าสำหรับ User":
             else:
                 st.warning("⚠️ กรุณากรอกข้อมูลและแนบไฟล์ให้ครบถ้วน")
 
-# --- 6. หน้าสำหรับ Admin (กู้คืนปุ่ม Add Admin + ระบบดาวน์โหลด) ---
+# --- 6. หน้าสำหรับ Admin ---
 elif page == "หน้าสำหรับ Admin":
     if not st.session_state.get('logged_in', False):
         st.markdown("### 🔐 เข้าสู่ระบบ Admin")
@@ -114,7 +119,6 @@ elif page == "หน้าสำหรับ Admin":
                 st.session_state.logged_in = True
                 st.rerun()
     else:
-        # ✅ กู้คืนปุ่มเพิ่ม Admin และจัดวาง Layout ตามภาพ
         col_title, col_add, col_logout = st.columns([6, 1.5, 1.5])
         col_title.markdown("## 🖥️ Dashboard")
         
@@ -137,7 +141,6 @@ elif page == "หน้าสำหรับ Admin":
                 st.write("---")
                 st.markdown("### 📁 ดาวน์โหลดไฟล์บทความ")
                 
-                # อ้างอิงคอลัมน์ "Filename" ตามตารางจริง
                 if "Filename" in df.columns:
                     file_list = df["Filename"].dropna().unique().tolist()
                     selected_file = st.selectbox("เลือกไฟล์ที่ต้องการดาวน์โหลด:", options=file_list, index=None)
@@ -151,7 +154,7 @@ elif page == "หน้าสำหรับ Admin":
                                     data=f,
                                     file_name=str(selected_file),
                                     mime="application/octet-stream",
-                                    use_container_width=True # ปุ่มขยายเต็มความกว้าง
+                                    use_container_width=True
                                 )
                         else:
                             st.error(f"❌ ไม่พบไฟล์ต้นฉบับในระบบ")
