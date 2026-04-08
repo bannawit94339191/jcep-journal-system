@@ -9,23 +9,20 @@ st.set_page_config(page_title="JCEP Journal System", layout="wide")
 
 st.markdown("""
     <style>
-    /* ปุ่มส่งข้อมูลสีน้ำเงินเข้ม */
-    .stButton>button[kind="primary"] { background-color: #1E3A8A; color: white; border-radius: 8px; border: none; }
-    /* ปุ่มยกเลิกสีแดง */
-    .stButton>button[kind="secondary"] { background-color: #dc3545; color: white; border-radius: 8px; border: none; }
+    .stButton>button[kind="primary"] { background-color: #1E3A8A; color: white; border-radius: 8px; }
+    .stButton>button[kind="secondary"] { background-color: #dc3545; color: white; border-radius: 8px; }
     
-    /* ตกแต่ง Sidebar โทนสีฟ้าอ่อน */
     section[data-testid="stSidebar"] { background-color: #F0F9FF; }
-    [data-testid="stSidebar"] h3 { color: #1E3A8A; }
     
-    /* จัดการโลโก้หน้า User ให้อยู่กึ่งกลาง */
-    .user-header-logo {
+    .user-header-logo { display: flex; justify-content: center; margin-bottom: 10px; }
+    
+    /* จัดการให้โลโก้ OCE อยู่กึ่งกลาง */
+    .oce-logo-link {
         display: flex;
         justify-content: center;
-        margin-bottom: 25px;
+        padding: 10px 0;
     }
 
-    /* Footer สีเขียวสดใส (ตามใจคุณ!) */
     .footer { 
         position: fixed; left: 0; bottom: 0; width: 100%; 
         background-color: #28a745; color: white; text-align: center; 
@@ -44,46 +41,41 @@ if "google_auth" in st.secrets:
         creds_with_scope = creds.with_scopes(scope)
         client = gspread.authorize(creds_with_scope)
         spreadsheet = client.open("JCEP_Data")
-        
-        try:
-            sheet = spreadsheet.worksheet("Data_2026")
-        except:
-            sheet = spreadsheet.sheet1
-        try:
-            admin_sheet = spreadsheet.worksheet("Admin_Users")
-        except:
-            admin_sheet = None
+        sheet = spreadsheet.worksheet("Data_2026")
     except Exception as e:
         st.error(f"การเชื่อมต่อผิดพลาด: {e}")
 
-# --- 3. ระบบจัดการ Session State ---
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-
-def logout():
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    st.rerun()
-
-# --- 4. แถบเมนูด้านข้าง (ลบรูปเก่า เปลี่ยนเป็น Dropdown "หน้าหลัก") ---
+# --- 3. Sidebar (Dropdown คลีนๆ) ---
 with st.sidebar:
     st.markdown("### 🏠 หน้าหลัก")
-    # เปลี่ยนจาก Radio เป็น Selectbox (Dropdown) ตามที่คุยกันไว้
-    page = st.selectbox(
-        "เลือกเมนูการใช้งาน:",
-        ["หน้าสำหรับ User", "หน้าสำหรับ Admin"]
-    )
+    page = st.selectbox("เลือกเมนูการใช้งาน:", ["หน้าสำหรับ User", "หน้าสำหรับ Admin"])
     st.markdown("<hr style='border-top: 1px solid #1E3A8A;'>", unsafe_allow_html=True)
 
-# --- 5. หน้าสำหรับ User ---
+# --- 4. หน้าสำหรับ User ---
 if page == "หน้าสำหรับ User":
-    # ✅ ใส่รูปภาพใหม่แทนที่ข้อความหัวข้อเดิม
-    if os.path.exists("coop_logo.png"):
-        st.markdown('<div class="user-header-logo">', unsafe_allow_html=True)
-        st.image("coop_logo.gif", width=350) # ปรับขนาดรูปได้ตามความเหมาะสม
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.header("📘 ระบบจัดเก็บข้อมูลวารสารสหกิจศึกษาก้าวหน้า")
+    # ✅ ส่วนที่ 1: แบนเนอร์ JCEP ด้านบนสุด
+    if os.path.exists("logo.gif"):
+        st.image("logo.gif", use_container_width=True)
+    
+    # ✅ ส่วนที่ 2: โลโก้ OCE ใต้เส้นคั่น + Link ไปเว็บไซต์
+    st.markdown("<hr>", unsafe_allow_html=True)
+    if os.path.exists("logo.png"):
+        col_img1, col_img2, col_img3 = st.columns([2, 1, 2])
+        with col_img2:
+            # ใช้ st.markdown ร่วมกับ HTML เพื่อทำ Image Link
+            st.markdown(
+                """
+                <a href="https://oce.rmutk.ac.th" target="_blank">
+                    <img src="app/static/logo.png" width="100%">
+                </a>
+                """,
+                unsafe_allow_html=True
+            )
+            # หมายเหตุ: ถ้าใช้บนเครื่องตัวเอง ให้ใช้ st.image ปกติแล้วใส่ caption แทนได้ถ้า HTML ไม่โหลด
+            # st.image("logo.png", width=150)
+            # st.link_button("🌐 ไปที่เว็บไซต์ OCE", "https://oce.rmutk.ac.th")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
 
     try:
         next_id = len(sheet.get_all_values())
@@ -129,34 +121,23 @@ if page == "หน้าสำหรับ User":
         if btn2.form_submit_button("ยกเลิก", type="secondary"):
             st.rerun()
 
-# --- 6. หน้าสำหรับ Admin ---
+# --- 5. หน้าสำหรับ Admin ---
 elif page == "หน้าสำหรับ Admin":
-    if not st.session_state.logged_in:
-        st.subheader("🔐 เข้าสู่ระบบผู้ดูแลระบบ")
+    if not st.session_state.get('logged_in', False):
+        st.subheader("🔐 Login Admin")
         u_in = st.text_input("Username")
         p_in = st.text_input("Password", type="password")
         if st.button("Sign In", type="primary"):
             if u_in == "bannawit.s" and p_in == "adminjcep":
                 st.session_state.logged_in = True
                 st.rerun()
-            else: st.error("ข้อมูลไม่ถูกต้อง")
     else:
-        if st.button("ออกจากระบบ", type="secondary"): logout()
+        if st.button("Logout"): 
+            st.session_state.logged_in = False
+            st.rerun()
+        st.header("🖥️ Dashboard")
+        df = pd.DataFrame(sheet.get_all_records())
+        st.dataframe(df, use_container_width=True)
 
-        st.header("🖥️ แผงควบคุมผู้ดูแลระบบ")
-        try:
-            df = pd.DataFrame(sheet.get_all_records())
-            st.dataframe(df, use_container_width=True)
-        except: st.info("ยังไม่มีข้อมูล")
-
-        st.divider()
-        st.subheader("📁 จัดการไฟล์วารสาร")
-        if os.path.exists("uploaded_journals"):
-            files = os.listdir("uploaded_journals")
-            if files:
-                sel = st.selectbox("เลือกไฟล์ที่ต้องการดาวน์โหลด:", files)
-                with open(os.path.join("uploaded_journals", sel), "rb") as f:
-                    st.download_button(f"💾 ดาวน์โหลดไฟล์ {sel}", f, file_name=sel)
-
-# --- 7. Footer สีเขียวสดใส ---
+# --- 6. Footer ---
 st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
