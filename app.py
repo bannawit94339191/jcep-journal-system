@@ -4,33 +4,32 @@ from google.oauth2 import service_account
 import gspread
 import os
 
-# --- 1. ตั้งค่าพื้นฐานและการตกแต่ง CSS (โทนสีน้ำเงิน) ---
+# --- 1. ตั้งค่าพื้นฐานและการตกแต่ง CSS ---
 st.set_page_config(page_title="JCEP Journal System", layout="wide")
 
 st.markdown("""
     <style>
-    /* ปรับแต่งปุ่มและองค์ประกอบหลักเป็นสีน้ำเงิน */
+    /* ปุ่ม Send และ Sign In เป็นสีน้ำเงินเข้ม */
     .stButton>button[kind="primary"] { background-color: #1E3A8A; color: white; border-radius: 8px; border: none; }
-    .stButton>button[kind="secondary"] { background-color: #64748B; color: white; border-radius: 8px; border: none; }
+    /* ปุ่ม Cancel สีแดงเหมือนเดิม */
+    .stButton>button[kind="secondary"] { background-color: #dc3545; color: white; border-radius: 8px; border: none; }
     
-    /* ตกแต่ง Sidebar และ Radio Navigation */
-    section[data-testid="stSidebar"] { background-color: #F8FAFC; }
+    /* ตกแต่ง Sidebar ด้วยโทนสีน้ำเงิน/ฟ้า */
+    section[data-testid="stSidebar"] { background-color: #F0F9FF; }
     .stRadio > label { font-weight: bold; color: #1E3A8A; }
     
-    /* จัดการโลโก้ให้อยู่กึ่งกลาง */
-    [data-testid="stSidebarNav"] { background-size: contain; }
+    /* จัดการโลโก้ให้อยู่กึ่งกลาง Sidebar */
     .logo-container {
         display: flex;
         justify-content: center;
         padding: 20px 0;
     }
 
-    /* Footer สีน้ำเงินเข้ม */
+    /* Footer สีเขียวตามคำขอ (กลับมาแล้ว!) */
     .footer { 
         position: fixed; left: 0; bottom: 0; width: 100%; 
-        background-color: #1E3A8A; color: white; text-align: center; 
-        padding: 12px; font-weight: normal; z-index: 100;
-        font-size: 14px;
+        background-color: #28a745; color: white; text-align: center; 
+        padding: 10px; font-weight: bold; z-index: 100;
     }
     .main { padding-bottom: 80px; }
     </style>
@@ -46,7 +45,7 @@ if "google_auth" in st.secrets:
         client = gspread.authorize(creds_with_scope)
         spreadsheet = client.open("JCEP_Data")
         
-        # เชื่อมต่อแผ่นงาน
+        # เชื่อมต่อแผ่นงานตามชื่อ
         try:
             sheet = spreadsheet.worksheet("Data_2026")
         except:
@@ -69,15 +68,14 @@ def logout():
         del st.session_state[key]
     st.rerun()
 
-# --- 4. แถบเมนูด้านข้าง (ปรับขนาดโลโก้และจัดกึ่งกลาง) ---
+# --- 4. แถบเมนูด้านข้าง (Sidebar สีน้ำเงิน + โลโก้กึ่งกลาง) ---
 with st.sidebar:
     if os.path.exists("logo.png"):
-        # ใส่โลโก้ใน Div ที่จัดกึ่งกลางและปรับขนาดให้เล็กลง (width=150)
         st.markdown('<div class="logo-container">', unsafe_allow_html=True)
         st.image("logo.png", width=150)
         st.markdown('</div>', unsafe_allow_html=True)
     
-    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("<hr style='border-top: 2px solid #1E3A8A;'>", unsafe_allow_html=True)
     st.title("📌 เมนูหลัก")
     page = st.radio("ไปที่หน้า:", ["หน้าสำหรับ User", "หน้าสำหรับ Admin"])
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -85,8 +83,6 @@ with st.sidebar:
 # --- 5. หน้าสำหรับ User ---
 if page == "หน้าสำหรับ User":
     st.header("📘 ระบบจัดเก็บข้อมูลวารสารสหกิจศึกษาก้าวหน้า")
-    st.subheader("Journal of Cooperative Education Progress")
-    
     try:
         next_id = len(sheet.get_all_values())
     except: next_id = 1
@@ -102,7 +98,6 @@ if page == "หน้าสำหรับ User":
         col_fac, col_maj = st.columns(2)
         faculty = col_fac.text_input("6. คณะ")
         major = col_maj.text_input("7. สาขาวิชา")
-        
         org = st.text_input("8. สังกัด / หน่วยงาน")
         addr = st.text_area("9. ที่อยู่สำหรับการจัดส่ง")
         
@@ -114,9 +109,7 @@ if page == "หน้าสำหรับ User":
         st.write("**12. ประเภทบทความ**")
         article_type = st.radio("เลือกเพียง 1 รายการ", ["บทความวิจัย", "บทความวิชาการ", "อื่นๆ"], horizontal=True)
         
-        other_detail = ""
-        if article_type == "อื่นๆ":
-            other_detail = st.text_input("โปรดระบุรายละเอียดอื่นๆ")
+        other_detail = st.text_input("ระบุรายละเอียด (หากเลือก อื่นๆ)")
 
         st.write("---")
         up_file = st.file_uploader("13. แนบไฟล์ (PDF/Word)", type=["pdf", "docx", "doc"])
@@ -134,8 +127,8 @@ if page == "หน้าสำหรับ User":
                     with open(os.path.join("uploaded_journals", up_file.name), "wb") as f: f.write(up_file.getvalue())
                     
                     sheet.append_row([next_id, prefix, f_name, l_name, uni, faculty, major, org, addr, phone, email_u, final_type, up_file.name])
-                    st.success("✅ บันทึกข้อมูลเรียบร้อยแล้ว!")
-            else: st.error("❌ กรุณาแนบไฟล์ก่อนส่งข้อมูล")
+                    st.success("✅ บันทึกสำเร็จ!")
+            else: st.error("❌ กรุณาแนบไฟล์")
         
         if btn2.form_submit_button("Cancel", type="secondary"):
             st.rerun()
@@ -143,20 +136,18 @@ if page == "หน้าสำหรับ User":
 # --- 6. หน้าสำหรับ Admin ---
 elif page == "หน้าสำหรับ Admin":
     if not st.session_state.logged_in:
-        st.markdown("<br>", unsafe_allow_html=True)
-        with st.container():
-            st.subheader("🔐 Login สำหรับผู้ดูแลระบบ")
-            u_in = st.text_input("Username")
-            p_in = st.text_input("Password", type="password")
-            if st.button("Sign In", type="primary"):
-                admins = admin_sheet.get_all_records() if admin_sheet else []
-                found = next((a for a in admins if str(a['Username']) == u_in and str(a['Password']) == p_in), None)
-                if found or (u_in == "bannawit.s" and p_in == "adminjcep"):
-                    st.session_state.logged_in = True
-                    st.session_state.current_admin = found['Name'] if found else "Master Admin"
-                    st.session_state.admin_role = found['Role'] if found else "Master Admin"
-                    st.rerun()
-                else: st.error("Username หรือ Password ไม่ถูกต้อง")
+        st.subheader("🔐 Login สำหรับผู้ดูแลระบบ")
+        u_in = st.text_input("Username")
+        p_in = st.text_input("Password", type="password")
+        if st.button("Sign In", type="primary"):
+            admins = admin_sheet.get_all_records() if admin_sheet else []
+            found = next((a for a in admins if str(a['Username']) == u_in and str(a['Password']) == p_in), None)
+            if found or (u_in == "bannawit.s" and p_in == "adminjcep"):
+                st.session_state.logged_in = True
+                st.session_state.current_admin = found['Name'] if found else "Master Admin"
+                st.session_state.admin_role = found['Role'] if found else "Master Admin"
+                st.rerun()
+            else: st.error("ข้อมูลไม่ถูกต้อง")
     else:
         col_n, col_a, col_o = st.columns([3, 1, 1])
         col_n.write(f"👤 ผู้ใช้: **{st.session_state.current_admin}** | 🛡️ สิทธิ์: **{st.session_state.admin_role}**")
@@ -175,7 +166,7 @@ elif page == "หน้าสำหรับ Admin":
                     n_role = st.selectbox("กำหนดสิทธิ์", ["Master Admin", "Admin (Viewer)"])
                     if st.form_submit_button("Confirm Add"):
                         admin_sheet.append_row([n_user, n_pass, n_name, n_mail, n_role])
-                        st.success("เพิ่มข้อมูลสำเร็จ!")
+                        st.success("สำเร็จ!")
                         st.session_state.show_add_form = False
 
         st.header("🖥️ Admin Dashboard")
@@ -190,9 +181,9 @@ elif page == "หน้าสำหรับ Admin":
             if os.path.exists("uploaded_journals"):
                 files = os.listdir("uploaded_journals")
                 if files:
-                    sel = st.selectbox("เลือกไฟล์ที่ต้องการ:", files)
+                    sel = st.selectbox("เลือกไฟล์:", files)
                     with open(os.path.join("uploaded_journals", sel), "rb") as f:
                         st.download_button(f"💾 Download: {sel}", f, file_name=sel)
 
-# --- 7. Footer สีน้ำเงินเข้ม ---
-st.markdown('<div class="footer">© 2026 Update by Bannawit S. (OCE - RMUTK) | JCEP System</div>', unsafe_allow_html=True)
+# --- 7. Footer สีเขียว ---
+st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
