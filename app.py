@@ -4,7 +4,7 @@ from google.oauth2 import service_account
 import gspread
 import os
 
-# --- 1. การตั้งค่าพื้นฐานและ CSS ---
+# --- 1. การตั้งค่าพื้นฐานและการตกแต่ง CSS ---
 st.set_page_config(page_title="JCEP Journal System", layout="wide")
 
 st.markdown("""
@@ -26,7 +26,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. ฟังก์ชัน Popup แจ้งเตือนกลางจอ ---
+# --- 2. ฟังก์ชัน Popup แจ้งเตือนกลางจอ (Modal) ---
 @st.dialog("🔔 การแจ้งเตือนจากระบบ")
 def show_message_modal(text):
     st.write(text)
@@ -46,19 +46,20 @@ if "google_auth" in st.secrets:
 
 # --- 4. Sidebar ---
 with st.sidebar:
-    st.markdown("### 🏠 HOME")
+    st.markdown("## 🏠 หน้าหลัก")
     page = st.selectbox("เลือกเมนูการใช้งาน:", ["หน้าสำหรับ User", "หน้าสำหรับ Admin"])
     st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
     st.link_button("🏫 มทร.กรุงเทพ (RMUTK)", "https://rmutk.ac.th", use_container_width=True)
     st.link_button("🏢 สำนักงานสหกิจศึกษา (OCE)", "https://oce.rmutk.ac.th/", use_container_width=True)
     st.link_button("📘 วารสารสหกิจก้าวหน้า (JCEP)", "https://jcep.rmutk.ac.th/", use_container_width=True)
 
-# --- 5. หน้าสำหรับ User (เพิ่มช่องกรอกให้ครบ) ---
+# --- 5. หน้าสำหรับ User (ตัวหนังสือล้วน + ฟอร์มครบ) ---
 if page == "หน้าสำหรับ User":
-    st.image("logo.png", width=300)
+    st.markdown("# 📘 ระบบส่งบทความวารสาร JCEP")
+    st.markdown("### สำนักงานสหกิจศึกษา มทร.กรุงเทพ")
     
     with st.form("user_form", clear_on_submit=True):
-        st.subheader("📝 ฟอร์มส่งวารสาร")
+        st.markdown("#### 📝 ฟอร์มส่งวารสาร")
         
         # ส่วนข้อมูลส่วนตัว
         col_p, col_f, col_l = st.columns([1, 2, 2])
@@ -91,30 +92,29 @@ if page == "หน้าสำหรับ User":
                     # บันทึกลง Google Sheet
                     sheet.append_row([prefix, f_name, l_name, uni, faculty, major, phone, email, article_type, up_file.name])
                     
-                    show_message_modal(f"✅ บันทึกข้อมูลของ {prefix}{f_name} เรียบร้อยแล้ว!")
+                    show_message_modal(f"✅ บันทึกข้อมูลเรียบร้อยแล้ว! ขอบคุณคุณ {f_name}")
                 except Exception as e:
                     st.error(f"เกิดข้อผิดพลาด: {e}")
             else:
-                st.warning("⚠️ กรุณากรอกข้อมูลสำคัญ (ชื่อ, เบอร์โทร, ไฟล์) ให้ครบถ้วน")
+                st.warning("⚠️ กรุณากรอกข้อมูลสำคัญและแนบไฟล์ให้ครบถ้วน")
 
 # --- 6. หน้าสำหรับ Admin ---
 elif page == "หน้าสำหรับ Admin":
     if not st.session_state.get('logged_in', False):
-        st.subheader("🔐 เข้าสู่ระบบ Admin")
+        st.markdown("### 🔐 เข้าสู่ระบบผู้ดูแลระบบ")
         u_in = st.text_input("Username")
         p_in = st.text_input("Password", type="password")
         if st.button("Sign In"):
             if u_in == "bannawit.s" and p_in == "adminjcep":
                 st.session_state.logged_in = True
                 st.rerun()
-            else: st.error("Username หรือ Password ไม่ถูกต้อง")
+            else: st.error("ข้อมูลไม่ถูกต้อง")
     else:
         # ✅ Dashboard Header
         col_title, col_add, col_logout = st.columns([6, 1.5, 1.5])
-        col_title.header("🖥️ Dashboard")
+        col_title.markdown("## 🖥️ Dashboard")
         
         if col_add.button("➕ เพิ่ม Admin", type="primary"):
-            # แสดงฟอร์มเพิ่ม Admin (ตัวอย่าง)
             show_message_modal("ขณะนี้ท่านสามารถจัดการรายชื่อผู้ดูแลได้โดยตรงผ่าน Google Sheets")
             
         if col_logout.button("🚪 ออกจากระบบ", type="secondary"):
@@ -123,28 +123,26 @@ elif page == "หน้าสำหรับ Admin":
 
         st.divider()
 
-        # ✅ ข้อมูลส่วนกลาง
+        # ✅ ตารางข้อมูล
         try:
             data = sheet.get_all_records()
             if data:
                 df = pd.DataFrame(data)
-                
-                # แสดงตารางข้อมูลวารสาร
-                st.subheader("📊 ตารางข้อมูลวารสาร")
+                st.markdown("### 📊 ตารางข้อมูลวารสาร")
                 st.dataframe(df, use_container_width=True)
                 
                 st.write("---")
                 
-                # ✅ ระบบดาวน์โหลดไฟล์แบบเลือกรายชื่อ
-                st.subheader("📁 ดาวน์โหลดไฟล์")
-                file_col = df.columns[-1] # คอลัมน์สุดท้ายที่เก็บชื่อไฟล์
+                # ✅ ระบบดาวน์โหลดไฟล์
+                st.markdown("### 📁 ดาวน์โหลดไฟล์")
+                file_col = df.columns[-1] 
                 file_list = df[file_col].unique().tolist()
                 
                 selected_file = st.selectbox(
                     "เลือกไฟล์ที่ต้องการดาวน์โหลด:", 
                     options=file_list,
                     index=None,
-                    placeholder="คลิกเพื่อเลือกไฟล์จากรายการ..."
+                    placeholder="คลิกเพื่อเลือกไฟล์..."
                 )
                 
                 if selected_file:
@@ -158,9 +156,9 @@ elif page == "หน้าสำหรับ Admin":
                                 mime="application/octet-stream"
                             )
                     else:
-                        st.warning(f"⚠️ ไม่พบไฟล์ {selected_file} ในเครื่อง")
+                        st.warning(f"⚠️ ไม่พบไฟล์ {selected_file} ในระบบ")
             else:
-                st.info("ยังไม่มีข้อมูลวารสารในฐานข้อมูล")
+                st.info("ยังไม่มีข้อมูลในระบบ")
         except Exception as e:
             st.error(f"ไม่สามารถดึงข้อมูลได้: {e}")
 
