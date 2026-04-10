@@ -117,6 +117,7 @@ elif page == "หน้าสำหรับ Admin":
         p_in = st.text_input("Password", type="password")
         if st.button("Sign In"):
             if u_in == "bannawit.s" and p_in == "adminjcep":
+            if u_in == "oris.m" and p_in == "adminjcep":
                 st.session_state.logged_in = True
                 st.rerun()
     else:
