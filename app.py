@@ -94,7 +94,7 @@ if page == "หน้าสำหรับ User":
         work_link = st.text_input("🔗 ลิงก์ผลงาน (ถ้ามี)")
         
         # ปุ่มส่งข้อมูล (ใช้ปุ่มปกติแทนฟอร์มเพื่อรองรับ Dynamic UI)
-        if st.button("🚀 ส่งข้อมูลวารสาร", type="primary", use_container_width=True):
+        if st.button("✅ ส่งข้อมูลวารสาร", type="primary", use_container_width=True):
             if not (up_file and f_name and phone and final_article_type):
                 st.warning("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน")
             elif article_type_option == "อื่นๆ" and not other_type:
