@@ -73,20 +73,21 @@ if st.session_state.nav_state == "หน้าสำหรับ User":
     st.markdown("# 📘 ระบบส่งวารสารสหกิจศึกษาก้าวหน้า")
     st.markdown("#### 📝 ฟอร์มส่งวารสาร")
     
+    # [จุดที่แก้ไข] ย้ายข้อความแจ้งเตือนมาไว้ตรงส่วนหัวใต้ "ฟอร์มส่งวารสาร"
+    st.info("💡 กรณีท่านไม่พบข้อมูลหน่วยงาน/มหาวิทยาลัยในรายการ โปรดเลือกเมนูจัดการรายชื่อที่แถบด้านข้าง (Sidebar) เพื่อเพิ่มข้อมูล")
+    
     with st.container(border=True):
         col_p, col_f, col_l = st.columns([1, 2, 2])
         prefix = col_p.selectbox("คำนำหน้าชื่อ", ["นาย", "นางสาว", "ผู้ช่วยศาสตราจารย์", "รองศาสตราจารย์", "ศาสตราจารย์"])
         f_name = col_f.text_input("ชื่อ")
         l_name = col_l.text_input("นามสกุล")
         
-        # เอาปุ่มบวก (+) ออก เหลือแค่ Selectbox
         uni = st.selectbox("มหาวิทยาลัย / สถาบัน", options=list_uni, index=None, placeholder="เลือกมหาวิทยาลัย...")
         
         col_fac, col_maj = st.columns(2)
         faculty = col_fac.text_input("คณะ")
         major = col_maj.text_input("สาขาวิชา")
         
-        # เอาปุ่มบวก (+) ออก เหลือแค่ Selectbox
         affiliation = st.selectbox("สังกัด / หน่วยงาน", options=list_agency, index=None, placeholder="เลือกหน่วยงาน...")
         address = st.text_input("ที่อยู่")
         
@@ -115,10 +116,6 @@ if st.session_state.nav_state == "หน้าสำหรับ User":
                     sheet.append_row(new_row)
                     show_message_modal("✅ บันทึกข้อมูลของท่านเรียบร้อย")
                 except Exception as e: st.error(f"เกิดข้อผิดพลาด: {e}")
-
-        # --- ส่วนท้าย: เอาปุ่มสีแดงออก เหลือแค่ข้อความแจ้งเตือน ---
-        st.write("---")
-        st.info("💡 กรณีท่านไม่พบข้อมูลหน่วยงาน/มหาวิทยาลัยในรายการ โปรดเลือกเมนูเพิ่มรายชื่อที่แถบด้านข้าง (Sidebar) เพื่อเพิ่มข้อมูลของท่าน")
 
 # --- 6. หน้าจัดการรายชื่อ (คงเดิม) ---
 elif st.session_state.nav_state in ["จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]:
