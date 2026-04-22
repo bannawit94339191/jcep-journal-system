@@ -20,15 +20,18 @@ st.markdown("""
     }
     .helper-text { 
         font-size: 0.95rem; color: #555; text-align: center; 
-        margin-top: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;
+        margin-top: 15px; padding: 15px; background-color: #f8f9fa; 
+        border-radius: 10px; border: 1px dashed #ccc;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. ฟังก์ชัน Navigation (หัวใจสำคัญเพื่อให้ปุ่มทำงาน) ---
-def navigate_to(page_name):
-    st.session_state.current_page = page_name
-    st.rerun()
+# --- 2. ระบบ Navigation (ใช้ Callback เพื่อความแม่นยำ) ---
+if 'page_nav' not in st.session_state:
+    st.session_state.page_nav = "หน้าสำหรับ User"
+
+def change_page(target):
+    st.session_state.page_nav = target
 
 # --- 3. การเชื่อมต่อ Google Services ---
 if "google_auth" in st.secrets:
@@ -47,24 +50,17 @@ if "google_auth" in st.secrets:
         st.error(f"การเชื่อมต่อผิดพลาด: {e}")
 
 # --- 4. Sidebar ---
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = "หน้าสำหรับ User"
-
 with st.sidebar:
     st.markdown("## 🏠 HOME")
     menu_options = ["หน้าสำหรับ User", "หน้าสำหรับ Admin", "จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]
     
-    # ดึง index ของหน้าปัจจุบันมาแสดงใน selectbox
-    try:
-        current_idx = menu_options.index(st.session_state.current_page)
-    except:
-        current_idx = 0
-
-    page = st.selectbox("เลือกเมนูการใช้งาน:", menu_options, index=current_idx, key="nav_selectbox")
+    # ใช้ index ที่ผูกกับ session_state โดยตรง
+    current_idx = menu_options.index(st.session_state.page_nav)
     
-    # ถ้าผู้ใช้เปลี่ยนค่าผ่าน Selectbox เอง ให้เปลี่ยนหน้าตาม
-    if page != st.session_state.current_page:
-        st.session_state.current_page = page
+    # เมื่อเลือกจาก Sidebar ให้ update page_nav ทันที
+    page = st.selectbox("เลือกเมนูการใช้งาน:", menu_options, index=current_idx, key="main_nav_box")
+    if page != st.session_state.page_nav:
+        st.session_state.page_nav = page
         st.rerun()
 
     st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
@@ -72,7 +68,7 @@ with st.sidebar:
     st.link_button("🏢 สำนักงานสหกิจศึกษา (OCE)", "https://oce.rmutk.ac.th/", use_container_width=True)
     st.link_button("📘 วารสารสหกิจก้าวหน้า (JCEP)", "https://jcep.rmutk.ac.th/", use_container_width=True)
 
-# ฟังก์ชันแสดง Modal (ย้ายมาไว้ตรงนี้เพื่อไม่ให้ทับซ้อน)
+# ฟังก์ชันแจ้งเตือน
 @st.dialog("🔔 การแจ้งเตือนจากระบบ")
 def show_message_modal(text):
     st.write(f"<div style='text-align: center; font-size: 1.2rem;'>{text}</div>", unsafe_allow_html=True)
@@ -80,7 +76,7 @@ def show_message_modal(text):
         st.rerun()
 
 # --- 5. หน้าสำหรับ User ---
-if st.session_state.current_page == "หน้าสำหรับ User":
+if st.session_state.page_nav == "หน้าสำหรับ User":
     st.markdown("# 📘 ระบบส่งวารสารสหกิจศึกษาก้าวหน้า")
     st.markdown("#### 📝 ฟอร์มส่งวารสาร")
     
@@ -112,7 +108,7 @@ if st.session_state.current_page == "หน้าสำหรับ User":
         up_file = st.file_uploader("แนบไฟล์บทความ (PDF/Word)", type=["pdf", "docx", "doc"])
         work_link = st.text_input("🔗 ลิงก์ผลงาน (ถ้ามี)")
         
-        if st.button("✅ ส่งข้อมูลวารสาร", type="primary", use_container_width=True):
+        if st.button("🚀 ส่งข้อมูลวารสาร", type="primary", use_container_width=True):
             if not (up_file and f_name and phone and final_article_type):
                 st.warning("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน")
             else:
@@ -122,53 +118,54 @@ if st.session_state.current_page == "หน้าสำหรับ User":
                     all_rows = sheet.get_all_values()
                     new_row = [len(all_rows), prefix, f_name, l_name, uni, faculty, major, affiliation, address, phone, email, final_article_type, up_file.name]
                     sheet.append_row(new_row)
-                    show_message_modal("✅ บันทึกข้อมูลของท่านเรียบร้อย")
-                except Exception as e: st.error(f"เกิดข้อผิดพลาด: {e}")
+                    show_message_modal("✅ บันทึกข้อมูลเรียบร้อย")
+                except Exception as e: st.error(f"ผิดพลาด: {e}")
 
-        # --- ส่วนที่แก้ไข: ปุ่มลิงก์สลับหน้าแบบบังคับ Rerun ---
-        st.markdown('<div class="helper-text">💡 <b>กรณีท่านไม่เคยเพิ่มข้อมูลในฟอร์มนี้</b> <br>กรุณาเข้าไปเพิ่มข้อมูลหน่วยงานของท่านได้ที่ปุ่มด้านล่างนี้</div>', unsafe_allow_html=True)
+        # --- ส่วนที่เน้นแก้ไข: ใช้ on_click เพื่อเปลี่ยนหน้า ---
+        st.markdown('<div class="helper-text">💡 <b>หากไม่พบรายชื่อหน่วยงานของท่าน</b> <br>กรุณากดปุ่มเพื่อไปหน้าเพิ่มข้อมูลด้านล่างนี้</div>', unsafe_allow_html=True)
         
         c1, c2 = st.columns(2)
-        if c1.button("🏫 เพิ่มรายชื่อมหาวิทยาลัย", use_container_width=True, type="secondary"):
-            navigate_to("จัดการรายชื่อมหาวิทยาลัย")
-        if c2.button("🏢 เพิ่มรายชื่อหน่วยงาน", use_container_width=True, type="secondary"):
-            navigate_to("จัดการรายชื่อหน่วยงาน")
+        c1.button("🏫 ไปหน้า: เพิ่มมหาวิทยาลัย", use_container_width=True, on_click=change_page, args=("จัดการรายชื่อมหาวิทยาลัย",))
+        c2.button("🏢 ไปหน้า: เพิ่มหน่วยงาน", use_container_width=True, on_click=change_page, args=("จัดการรายชื่อหน่วยงาน",))
 
-# --- 6. หน้าจัดการรายชื่อ ---
-elif st.session_state.current_page in ["จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]:
-    target_sheet = sheet_uni if st.session_state.current_page == "จัดการรายชื่อมหาวิทยาลัย" else sheet_agency
-    current_list = list_uni if st.session_state.current_page == "จัดการรายชื่อมหาวิทยาลัย" else list_agency
-    label = "มหาวิทยาลัย" if st.session_state.current_page == "จัดการรายชื่อมหาวิทยาลัย" else "หน่วยงาน"
+# --- 6. หน้าจัดการรายชื่อ (เพิ่มปุ่มกลับ) ---
+elif st.session_state.page_nav in ["จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]:
+    target_sheet = sheet_uni if st.session_state.page_nav == "จัดการรายชื่อมหาวิทยาลัย" else sheet_agency
+    current_list = list_uni if st.session_state.page_nav == "จัดการรายชื่อมหาวิทยาลัย" else list_agency
+    label = "มหาวิทยาลัย" if st.session_state.page_nav == "จัดการรายชื่อมหาวิทยาลัย" else "หน่วยงาน"
     
-    st.markdown(f"## ⚙️ {st.session_state.current_page}")
-    if st.button("⬅️ กลับหน้าหลัก"):
-        navigate_to("หน้าสำหรับ User")
+    st.markdown(f"## ⚙️ {st.session_state.page_nav}")
+    st.button("⬅️ กลับไปหน้าฟอร์มส่งวารสาร", on_click=change_page, args=("หน้าสำหรับ User",))
 
-    with st.form("add_form", clear_on_submit=True):
+    with st.form("add_list_form", clear_on_submit=True):
         st.subheader(f"➕ เพิ่มข้อมูล{label}")
         new_name = st.text_input(f"ชื่อ{label}:").strip()
         new_addr = st.text_area("ที่อยู่:")
-        new_contact = st.text_input("เบอร์โทร:")
+        new_contact = st.text_input("เบอร์โทรศัพท์:")
         new_mail = st.text_input("E-mail:")
-        if st.form_submit_button(f"🚀 บันทึก", type="primary"):
+        
+        if st.form_submit_button(f"🚀 บันทึกข้อมูล{label}", type="primary"):
             if new_name and new_name.lower() not in [n.lower() for n in current_list]:
-                target_sheet.append_row([new_name, new_addr, new_contact, new_mail])
-                show_message_modal("✅ บันทึกเรียบร้อย")
-            else: st.error("ข้อมูลซ้ำหรือไม่ได้กรอกชื่อ")
+                try:
+                    target_sheet.append_row([new_name, new_addr, new_contact, new_mail])
+                    show_message_modal(f"✅ เพิ่มข้อมูล{label}สำเร็จ")
+                except Exception as e: st.error(f"บันทึกไม่ได้: {e}")
+            else: st.warning("ข้อมูลซ้ำหรือไม่ได้กรอกชื่อ")
     
     st.divider()
     try:
-        data = target_sheet.get_all_values()
-        if len(data) > 1: st.table(pd.DataFrame(data[1:], columns=data[0]))
+        data_list = target_sheet.get_all_values()
+        if len(data_list) > 1: st.table(pd.DataFrame(data_list[1:], columns=data_list[0]))
     except: pass
 
 # --- 7. หน้าสำหรับ Admin ---
-elif st.session_state.current_page == "หน้าสำหรับ Admin":
+elif st.session_state.page_nav == "หน้าสำหรับ Admin":
     if not st.session_state.get('logged_in', False):
         st.markdown("### 🔐 กรุณาเข้าสู่ระบบสำหรับ Admin")
-        u, p = st.text_input("Username"), st.text_input("Password", type="password")
+        u_in = st.text_input("Username")
+        p_in = st.text_input("Password", type="password")
         if st.button("Sign In"):
-            if u == "bannawit.s" and p == "adminjcep":
+            if u_in == "bannawit.s" and p_in == "adminjcep":
                 st.session_state.logged_in = True
                 st.rerun()
             else: st.error("❌ ข้อมูลไม่ถูกต้อง")
@@ -176,8 +173,10 @@ elif st.session_state.current_page == "หน้าสำหรับ Admin":
         if st.button("🚪 ออกจากระบบ", type="secondary"):
             st.session_state.logged_in = False
             st.rerun()
-        raw_data = sheet.get_all_values()
-        if len(raw_data) > 1:
-            st.dataframe(pd.DataFrame(raw_data[1:], columns=raw_data[0]), use_container_width=True)
+        try:
+            raw_data = sheet.get_all_values()
+            if len(raw_data) > 1:
+                st.dataframe(pd.DataFrame(raw_data[1:], columns=raw_data[0]), use_container_width=True)
+        except Exception as e: st.error(f"โหลดข้อมูลไม่ได้: {e}")
 
 st.markdown('<div class="footer">Create by OCE - RMUTK</div>', unsafe_allow_html=True)
