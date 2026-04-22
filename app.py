@@ -55,7 +55,7 @@ if "google_auth" in st.secrets:
 # --- 4. Sidebar ---
 with st.sidebar:
     st.markdown("## 🏠 HOME")
-    menu_options = ["หน้าสำหรับ User", "หน้าสำหรับ Admin", "จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]
+    menu_options = ["หน้าสำหรับเพิ่มข้อมูล", "หน้าสำหรับ Admin", "เพิ่มข้อมูลมหาวิทยาลัย/สถาบัน", "เพิ่มข้อมูลหน่วยงาน/สังกัด"]
     current_index = menu_options.index(st.session_state.nav_state)
     page = st.selectbox("เลือกเมนูการใช้งาน:", menu_options, index=current_index, key="sidebar_nav")
     
