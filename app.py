@@ -45,7 +45,7 @@ list_uni = sorted(df_uni.iloc[:, 0].tolist()) if not df_uni.empty else []
 list_agency = sorted(df_agency.iloc[:, 0].tolist()) if not df_agency.empty else []
 
 # --- 3. ระบบควบคุม Navigation ---
-menu_options = ["หน้าสำหรับกรอกข้อมูล", "หน้าสำหรับ Admin", "จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]
+menu_options = ["หน้าสำหรับ User", "หน้าสำหรับ Admin", "จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]
 if 'nav_state' not in st.session_state:
     st.session_state.nav_state = menu_options[0]
 
