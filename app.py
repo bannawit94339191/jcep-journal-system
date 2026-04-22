@@ -9,15 +9,10 @@ st.set_page_config(page_title="JCEP Journal System", layout="wide")
 
 st.markdown("""
     <style>
-    /* ตกแต่งปุ่ม Dashboard */
     .stButton>button[kind="primary"] { background-color: #1E3A8A; color: white; border-radius: 8px; }
     .stButton>button[kind="secondary"] { background-color: #dc3545; color: white; border-radius: 8px; }
-    
-    /* Sidebar */
     section[data-testid="stSidebar"] { background-color: #F0F9FF; }
     .sidebar-divider { border-top: 3px solid #000000; margin: 10px 0; }
-    
-    /* Footer */
     .footer { 
         position: fixed; left: 0; bottom: 0; width: 100%; 
         background-color: #28a745; color: white; text-align: center; 
@@ -31,8 +26,6 @@ st.markdown("""
 def show_message_modal(text):
     st.write(f"<div style='text-align: center;'>{text}</div>", unsafe_allow_html=True)
     st.write("") 
-    
-    # จัดปุ่มไว้ตรงกลางโดยใช้ columns
     left, center, right = st.columns([1, 2, 1])
     with center:
         if st.button("ปิดหน้าต่าง", use_container_width=True):
@@ -45,23 +38,34 @@ if "google_auth" in st.secrets:
         creds = service_account.Credentials.from_service_account_info(info)
         client = gspread.authorize(creds.with_scopes(['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']))
         spreadsheet = client.open("JCEP_Data")
+        
+        # เชื่อมต่อหน้าต่างๆ
         sheet = spreadsheet.worksheet("Data_2026")
+        sheet_uni = spreadsheet.worksheet("University")
+        sheet_agency = spreadsheet.worksheet("Agency")
+        
+        # ดึงข้อมูล List สำหรับ Dropdown
+        list_uni = [item for item in sheet_uni.col_values(1)[1:] if item] # ข้ามหัวตาราง
+        list_agency = [item for item in sheet_agency.col_values(1)[1:] if item]
+        
     except Exception as e:
         st.error(f"การเชื่อมต่อผิดพลาด: {e}")
 
 # --- 4. Sidebar ---
 with st.sidebar:
     st.markdown("## 🏠 HOME")
-    page = st.selectbox("เลือกเมนูการใช้งาน:", ["หน้าสำหรับ User", "หน้าสำหรับ Admin"])
+    # เพิ่มเมนูใหม่สำหรับ Admin ตามข้อ 1-2
+    menu_options = ["หน้าสำหรับ User", "หน้าสำหรับ Admin", "จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]
+    page = st.selectbox("เลือกเมนูการใช้งาน:", menu_options)
+    
     st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
     st.link_button("🏫 มทร.กรุงเทพ (RMUTK)", "https://rmutk.ac.th", use_container_width=True)
     st.link_button("🏢 สำนักงานสหกิจศึกษา (OCE)", "https://oce.rmutk.ac.th/", use_container_width=True)
     st.link_button("📘 วารสารสหกิจก้าวหน้า (JCEP)", "https://jcep.rmutk.ac.th/", use_container_width=True)
 
-# --- 5. หน้าสำหรับ User (บันทึกข้อมูลเรียงตาม A-M) ---
+# --- 5. หน้าสำหรับ User ---
 if page == "หน้าสำหรับ User":
     st.markdown("# 📘 ระบบส่งวารสารสหกิจศึกษาก้าวหน้า")
-    st.markdown("### สำนักงานสหกิจศึกษา มหาวิทยาลัยเทคโนโลยีราชมงคลกรุงเทพ")
     
     with st.form("user_form", clear_on_submit=True):
         st.markdown("#### 📝 ฟอร์มส่งวารสาร")
@@ -71,12 +75,14 @@ if page == "หน้าสำหรับ User":
         f_name = col_f.text_input("ชื่อ")
         l_name = col_l.text_input("นามสกุล")
         
-        uni = st.text_input("มหาวิทยาลัย / สถาบัน")
+        # เปลี่ยนเป็น Dropdown (ข้อ 4-5)
+        uni = st.selectbox("มหาวิทยาลัย / สถาบัน", options=["-- เลือกมหาวิทยาลัย --"] + list_uni)
+        
         col_fac, col_maj = st.columns(2)
         faculty = col_fac.text_input("คณะ")
         major = col_maj.text_input("สาขาวิชา")
         
-        affiliation = st.text_input("สังกัด / หน่วยงาน")
+        affiliation = st.selectbox("สังกัด / หน่วยงาน", options=["-- เลือกหน่วยงาน --"] + list_agency)
         address = st.text_input("ที่อยู่")
         
         col_t, col_e = st.columns(2)
@@ -84,10 +90,16 @@ if page == "หน้าสำหรับ User":
         email = col_e.text_input("E-mail")
         
         article_type = st.radio("**ประเภทบทความ**", ["บทความวิจัย", "บทความวิชาการ", "อื่นๆ"], horizontal=True)
+        
+        # ส่วนแนบไฟล์และลิงก์ (ข้อ 1)
         up_file = st.file_uploader("แนบไฟล์บทความ (PDF/Word)", type=["pdf", "docx", "doc"])
+        work_link = st.text_input("🔗 ลิงก์ผลงาน (ถ้ามี)", placeholder="https://example.com/your-work")
         
         if st.form_submit_button("ส่งข้อมูล", type="primary"):
-            if up_file and f_name and phone:
+            # ตรวจสอบความครบถ้วน (ข้อ 2)
+            if not (up_file and f_name and phone and uni != "-- เลือกมหาวิทยาลัย --" and affiliation != "-- เลือกหน่วยงาน --"):
+                st.warning("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน")
+            else:
                 try:
                     folder_path = "uploaded_journals"
                     if not os.path.exists(folder_path): os.makedirs(folder_path)
@@ -96,21 +108,20 @@ if page == "หน้าสำหรับ User":
                         f.write(up_file.getbuffer())
                     
                     row_count = len(sheet.get_all_values())
-                    # เรียงลำดับให้ตรงตาม Google Sheets (A: ลำดับ, B: คำนำหน้าชื่อ, C: ชื่อ, D: นามสกุล ...)
+                    # บันทึกข้อมูล (เพิ่ม Link ในคอลัมน์ N)
                     new_row = [
                         row_count, prefix, f_name, l_name, uni, 
                         faculty, major, affiliation, address, 
-                        phone, email, article_type, up_file.name
+                        phone, email, article_type, up_file.name, work_link
                     ]
                     sheet.append_row(new_row)
-                    show_message_modal(f"✅ บันทึกข้อมูลเรียบร้อยแล้ว!")
+                    # Popup แจ้งเตือน (ข้อ 3)
+                    show_message_modal("✅ บันทึกข้อมูลของท่านเรียบร้อย")
                 except Exception as e:
                     st.error(f"เกิดข้อผิดพลาด: {e}")
-            else:
-                st.warning("⚠️ กรุณากรอกข้อมูลและแนบไฟล์ให้ครบถ้วน")
 
-# --- 6. หน้าสำหรับ Admin (กู้คืนระบบเลือกไฟล์ดาวน์โหลด) ---
-elif page == "หน้าสำหรับ Admin":
+# --- 6. หน้าสำหรับ Admin ---
+elif page in ["หน้าสำหรับ Admin", "จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]:
     if not st.session_state.get('logged_in', False):
         st.markdown("### 🔐 เข้าสู่ระบบ Admin")
         u_in = st.text_input("Username")
@@ -120,53 +131,68 @@ elif page == "หน้าสำหรับ Admin":
                 st.session_state.logged_in = True
                 st.rerun()
     else:
-        col_title, col_add, col_logout = st.columns([6, 1.5, 1.5])
-        col_title.markdown("## 🖥️ Dashboard")
-        
-        if col_add.button("➕ เพิ่ม Admin", type="primary"):
-            show_message_modal("ขณะนี้ท่านสามารถจัดการรายชื่อผู้ดูแลได้โดยตรงผ่าน Google Sheets")
-            
-        if col_logout.button("🚪 ออกจากระบบ", type="secondary"):
-            st.session_state.logged_in = False
-            st.rerun()
+        # แยกหน้าย่อยของ Admin
+        if page == "หน้าสำหรับ Admin":
+            col_title, col_logout = st.columns([8, 1.5])
+            col_title.markdown("## 🖥️ Dashboard")
+            if col_logout.button("🚪 ออกจากระบบ", type="secondary"):
+                st.session_state.logged_in = False
+                st.rerun()
 
-        st.divider()
-
-        try:
-            data = sheet.get_all_records()
-            if data:
-                df = pd.DataFrame(data)
-                st.markdown("### 📊 ตารางข้อมูลวารสาร")
-                st.dataframe(df, use_container_width=True)
-                
-                st.write("---")
-                # ส่วนดาวน์โหลดที่กลับมาให้เลือกไฟล์ได้เหมือนเดิม
-                st.markdown("### 📁 ดาวน์โหลดไฟล์บทความ")
-                
-                # ตรวจสอบชื่อคอลัมน์ "Filename" ให้ตรงกับใน Sheet
-                if "Filename" in df.columns:
-                    file_list = df["Filename"].dropna().unique().tolist()
-                    selected_file = st.selectbox("เลือกไฟล์ที่ต้องการดาวน์โหลด:", options=file_list, index=None, placeholder="คลิกเพื่อเลือกไฟล์...")
+            st.divider()
+            try:
+                data = sheet.get_all_records()
+                if data:
+                    df = pd.DataFrame(data)
+                    st.markdown("### 📊 ตารางข้อมูลวารสาร")
+                    # ปรับให้แสดงลิงก์ที่คลิกได้ (ข้อ 1 Admin)
+                    st.dataframe(df, use_container_width=True)
                     
-                    if selected_file:
-                        f_path = os.path.join("uploaded_journals", str(selected_file))
-                        if os.path.exists(f_path):
-                            with open(f_path, "rb") as f:
-                                st.download_button(
-                                    label=f"💾 ดาวน์โหลด: {selected_file}",
-                                    data=f,
-                                    file_name=str(selected_file),
-                                    mime="application/octet-stream",
-                                    use_container_width=True
-                                )
-                        else:
-                            st.error(f"❌ ไม่พบไฟล์ต้นฉบับในโฟลเดอร์ uploaded_journals")
+                    st.write("---")
+                    st.markdown("### 📁 จัดการไฟล์และลิงก์")
+                    if "Filename" in df.columns:
+                        file_list = df["Filename"].dropna().unique().tolist()
+                        selected_file = st.selectbox("เลือกรายการที่ต้องการดูรายละเอียด:", options=file_list, index=None)
+                        
+                        if selected_file:
+                            # ดึงข้อมูลลิงก์ของไฟล์ที่เลือก
+                            row_info = df[df["Filename"] == selected_file].iloc[0]
+                            
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                f_path = os.path.join("uploaded_journals", str(selected_file))
+                                if os.path.exists(f_path):
+                                    with open(f_path, "rb") as f:
+                                        st.download_button(label=f"💾 ดาวน์โหลดไฟล์", data=f, file_name=str(selected_file), use_container_width=True)
+                            with c2:
+                                # แสดงลิงก์ผลงาน (ข้อ 1 Admin)
+                                link_val = row_info.get("work_link", row_info.iloc[-1]) # ดึงจากคอลัมน์ท้ายๆ
+                                if link_val and str(link_val).startswith("http"):
+                                    st.link_button(f"🔗 เปิดลิงก์ผลงาน", str(link_val), use_container_width=True)
+                                else:
+                                    st.button("🚫 ไม่มีลิงก์แนบมา", disabled=True, use_container_width=True)
                 else:
-                    st.warning("⚠️ ไม่พบคอลัมน์ 'Filename' ในฐานข้อมูล")
-            else:
-                st.info("ℹ️ ยังไม่มีข้อมูลในระบบ")
-        except Exception as e:
-            st.error(f"เกิดข้อผิดพลาดในการดึงข้อมูล: {e}")
+                    st.info("ℹ️ ยังไม่มีข้อมูล")
+            except Exception as e:
+                st.error(f"เกิดข้อผิดพลาด: {e}")
+
+        # หน้าจัดการ List (University / Agency)
+        else:
+            target_sheet = sheet_uni if page == "จัดการรายชื่อมหาวิทยาลัย" else sheet_agency
+            label = "มหาวิทยาลัย" if page == "จัดการรายชื่อมหาวิทยาลัย" else "หน่วยงาน"
+            
+            st.header(f"⚙️ {page}")
+            new_item = st.text_input(f"เพิ่มชื่อ{label}ใหม่:")
+            if st.button(f"➕ บันทึกรายชื่อ{label}", type="primary"):
+                if new_item:
+                    target_sheet.append_row([new_item])
+                    st.success(f"บันทึก {new_item} เรียบร้อย!")
+                    st.rerun()
+            
+            st.write("---")
+            st.write(f"รายชื่อ{label}ปัจจุบันในระบบ:")
+            current_list = target_sheet.col_values(1)[1:]
+            st.table(current_list)
 
 # --- 7. Footer ---
 st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
