@@ -39,22 +39,20 @@ if "google_auth" in st.secrets:
         client = gspread.authorize(creds.with_scopes(['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']))
         spreadsheet = client.open("JCEP_Data")
         
-        # เชื่อมต่อหน้าต่างๆ
         sheet = spreadsheet.worksheet("Data_2026")
         sheet_uni = spreadsheet.worksheet("University")
         sheet_agency = spreadsheet.worksheet("Agency")
         
-        # ดึงข้อมูล List สำหรับ Dropdown
-        list_uni = [item for item in sheet_uni.col_values(1)[1:] if item] # ข้ามหัวตาราง
+        # ดึงข้อมูลสำหรับ Dropdown
+        list_uni = [item for item in sheet_uni.col_values(1)[1:] if item]
         list_agency = [item for item in sheet_agency.col_values(1)[1:] if item]
-        
     except Exception as e:
         st.error(f"การเชื่อมต่อผิดพลาด: {e}")
 
 # --- 4. Sidebar ---
 with st.sidebar:
     st.markdown("## 🏠 HOME")
-    # เพิ่มเมนูใหม่สำหรับ Admin ตามข้อ 1-2
+    # เมนูทั้งหมด
     menu_options = ["หน้าสำหรับ User", "หน้าสำหรับ Admin", "จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]
     page = st.selectbox("เลือกเมนูการใช้งาน:", menu_options)
     
@@ -69,15 +67,12 @@ if page == "หน้าสำหรับ User":
     
     with st.form("user_form", clear_on_submit=True):
         st.markdown("#### 📝 ฟอร์มส่งวารสาร")
-        
         col_p, col_f, col_l = st.columns([1, 2, 2])
         prefix = col_p.selectbox("คำนำหน้า", ["นาย", "นางสาว", "ผู้ช่วยศาสตราจารย์", "รองศาสตราจารย์", "ศาสตราจารย์"])
         f_name = col_f.text_input("ชื่อ")
         l_name = col_l.text_input("นามสกุล")
         
-        # เปลี่ยนเป็น Dropdown (ข้อ 4-5)
         uni = st.selectbox("มหาวิทยาลัย / สถาบัน", options=["-- เลือกมหาวิทยาลัย --"] + list_uni)
-        
         col_fac, col_maj = st.columns(2)
         faculty = col_fac.text_input("คณะ")
         major = col_maj.text_input("สาขาวิชา")
@@ -90,13 +85,10 @@ if page == "หน้าสำหรับ User":
         email = col_e.text_input("E-mail")
         
         article_type = st.radio("**ประเภทบทความ**", ["บทความวิจัย", "บทความวิชาการ", "อื่นๆ"], horizontal=True)
-        
-        # ส่วนแนบไฟล์และลิงก์ (ข้อ 1)
         up_file = st.file_uploader("แนบไฟล์บทความ (PDF/Word)", type=["pdf", "docx", "doc"])
         work_link = st.text_input("🔗 ลิงก์ผลงาน (ถ้ามี)", placeholder="https://example.com/your-work")
         
         if st.form_submit_button("ส่งข้อมูล", type="primary"):
-            # ตรวจสอบความครบถ้วน (ข้อ 2)
             if not (up_file and f_name and phone and uni != "-- เลือกมหาวิทยาลัย --" and affiliation != "-- เลือกหน่วยงาน --"):
                 st.warning("⚠️ กรุณากรอกข้อมูลให้ครบถ้วน")
             else:
@@ -108,86 +100,76 @@ if page == "หน้าสำหรับ User":
                         f.write(up_file.getbuffer())
                     
                     row_count = len(sheet.get_all_values())
-                    # บันทึกข้อมูล (เพิ่ม Link ในคอลัมน์ N)
-                    new_row = [
-                        row_count, prefix, f_name, l_name, uni, 
-                        faculty, major, affiliation, address, 
-                        phone, email, article_type, up_file.name, work_link
-                    ]
+                    new_row = [row_count, prefix, f_name, l_name, uni, faculty, major, affiliation, address, phone, email, article_type, up_file.name, work_link]
                     sheet.append_row(new_row)
-                    # Popup แจ้งเตือน (ข้อ 3)
                     show_message_modal("✅ บันทึกข้อมูลของท่านเรียบร้อย")
                 except Exception as e:
                     st.error(f"เกิดข้อผิดพลาด: {e}")
 
-# --- 6. หน้าสำหรับ Admin ---
+# --- 6. หน้าสำหรับ Admin & การจัดการข้อมูล (เพิ่มเงื่อนไข Login ทุกหน้า) ---
 elif page in ["หน้าสำหรับ Admin", "จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]:
     if not st.session_state.get('logged_in', False):
-        st.markdown("### 🔐 เข้าสู่ระบบ Admin")
+        st.markdown(f"### 🔐 กรุณาเข้าสู่ระบบเพื่อใช้งานเมนู '{page}'")
         u_in = st.text_input("Username")
         p_in = st.text_input("Password", type="password")
         if st.button("Sign In"):
             if u_in == "bannawit.s" and p_in == "adminjcep":
                 st.session_state.logged_in = True
                 st.rerun()
+            else:
+                st.error("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
     else:
+        # ส่วนควบคุมปุ่ม Logout หลัก
+        col_title, col_logout = st.columns([8, 1.5])
+        col_title.markdown(f"## 🖥️ {page}")
+        if col_logout.button("🚪 ออกจากระบบ", type="secondary"):
+            st.session_state.logged_in = False
+            st.rerun()
+        st.divider()
+
         # แยกหน้าย่อยของ Admin
         if page == "หน้าสำหรับ Admin":
-            col_title, col_logout = st.columns([8, 1.5])
-            col_title.markdown("## 🖥️ Dashboard")
-            if col_logout.button("🚪 ออกจากระบบ", type="secondary"):
-                st.session_state.logged_in = False
-                st.rerun()
-
-            st.divider()
             try:
                 data = sheet.get_all_records()
                 if data:
                     df = pd.DataFrame(data)
                     st.markdown("### 📊 ตารางข้อมูลวารสาร")
-                    # ปรับให้แสดงลิงก์ที่คลิกได้ (ข้อ 1 Admin)
                     st.dataframe(df, use_container_width=True)
-                    
                     st.write("---")
                     st.markdown("### 📁 จัดการไฟล์และลิงก์")
                     if "Filename" in df.columns:
                         file_list = df["Filename"].dropna().unique().tolist()
-                        selected_file = st.selectbox("เลือกรายการที่ต้องการดูรายละเอียด:", options=file_list, index=None)
-                        
+                        selected_file = st.selectbox("เลือกรายการ:", options=file_list, index=None)
                         if selected_file:
-                            # ดึงข้อมูลลิงก์ของไฟล์ที่เลือก
                             row_info = df[df["Filename"] == selected_file].iloc[0]
-                            
                             c1, c2 = st.columns(2)
                             with c1:
                                 f_path = os.path.join("uploaded_journals", str(selected_file))
                                 if os.path.exists(f_path):
                                     with open(f_path, "rb") as f:
-                                        st.download_button(label=f"💾 ดาวน์โหลดไฟล์", data=f, file_name=str(selected_file), use_container_width=True)
+                                        st.download_button(label="💾 ดาวน์โหลดไฟล์", data=f, file_name=str(selected_file), use_container_width=True)
                             with c2:
-                                # แสดงลิงก์ผลงาน (ข้อ 1 Admin)
-                                link_val = row_info.get("work_link", row_info.iloc[-1]) # ดึงจากคอลัมน์ท้ายๆ
+                                link_val = row_info.get("work_link", row_info.iloc[-1])
                                 if link_val and str(link_val).startswith("http"):
                                     st.link_button(f"🔗 เปิดลิงก์ผลงาน", str(link_val), use_container_width=True)
                                 else:
                                     st.button("🚫 ไม่มีลิงก์แนบมา", disabled=True, use_container_width=True)
-                else:
-                    st.info("ℹ️ ยังไม่มีข้อมูล")
             except Exception as e:
                 st.error(f"เกิดข้อผิดพลาด: {e}")
 
-        # หน้าจัดการ List (University / Agency)
+        # หน้าจัดการ List (University / Agency) พร้อม Popup เพิ่มข้อมูลเรียบร้อย
         else:
             target_sheet = sheet_uni if page == "จัดการรายชื่อมหาวิทยาลัย" else sheet_agency
             label = "มหาวิทยาลัย" if page == "จัดการรายชื่อมหาวิทยาลัย" else "หน่วยงาน"
             
-            st.header(f"⚙️ {page}")
             new_item = st.text_input(f"เพิ่มชื่อ{label}ใหม่:")
             if st.button(f"➕ บันทึกรายชื่อ{label}", type="primary"):
                 if new_item:
                     target_sheet.append_row([new_item])
-                    st.success(f"บันทึก {new_item} เรียบร้อย!")
-                    st.rerun()
+                    # เพิ่ม Popup แจ้งเตือนเมื่อบันทึกข้อมูลเรียบร้อย
+                    show_message_modal("✅ เพิ่มข้อมูลเรียบร้อย")
+                else:
+                    st.warning(f"⚠️ กรุณากรอกชื่อ{label}ก่อนกดบันทึก")
             
             st.write("---")
             st.write(f"รายชื่อ{label}ปัจจุบันในระบบ:")
