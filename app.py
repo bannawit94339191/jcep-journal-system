@@ -48,7 +48,7 @@ if "google_auth" in st.secrets:
 # --- 4. Sidebar ---
 with st.sidebar:
     st.markdown("## 🏠 HOME")
-    menu_options = ["หน้าสำหรับ User", "หน้าสำหรับ Admin", "จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]
+    menu_options = ["หน้าสำหรับ User", "หน้าสำหรับ Admin", "เพิ่มรายชื่อมหาวิทยาลัย/สถาบัน", "เพิ่มรายชื่อหน่วยงาน/สังกัด"]
     page = st.selectbox("เลือกเมนูการใช้งาน:", menu_options)
     st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
     st.link_button("🏫 มทร.กรุงเทพ (RMUTK)", "https://rmutk.ac.th", use_container_width=True)
