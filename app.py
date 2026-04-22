@@ -59,7 +59,7 @@ with st.sidebar:
     st.link_button("🏢 สำนักงานสหกิจศึกษา (OCE)", "https://oce.rmutk.ac.th/", use_container_width=True)
     st.link_button("📘 วารสารสหกิจก้าวหน้า (JCEP)", "https://jcep.rmutk.ac.th/", use_container_width=True)
 
-# --- 5. หน้าสำหรับ User (ปรับปรุงช่องค้นหาให้ว่างเปล่าตอนเริ่ม) ---
+# --- 5. หน้าสำหรับ User ---
 if page == "หน้าสำหรับ User":
     st.markdown("# 📘 ระบบส่งวารสารสหกิจศึกษาก้าวหน้า")
     
@@ -70,7 +70,6 @@ if page == "หน้าสำหรับ User":
         f_name = col_f.text_input("ชื่อ")
         l_name = col_l.text_input("นามสกุล")
         
-        # ปรับปรุง: เอา "-- เลือก... --" ออก และใช้ placeholder + index=None
         uni = st.selectbox(
             "มหาวิทยาลัย / สถาบัน", 
             options=list_uni,
@@ -82,7 +81,6 @@ if page == "หน้าสำหรับ User":
         faculty = col_fac.text_input("คณะ")
         major = col_maj.text_input("สาขาวิชา")
         
-        # ปรับปรุง: สำหรับหน่วยงาน
         affiliation = st.selectbox(
             "สังกัด / หน่วยงาน", 
             options=list_agency,
@@ -101,7 +99,6 @@ if page == "หน้าสำหรับ User":
         work_link = st.text_input("🔗 ลิงก์ผลงาน (ถ้ามี)", placeholder="https://example.com/your-work")
         
         if st.form_submit_button("ส่งข้อมูล", type="primary"):
-            # เช็คว่า uni และ affiliation ไม่เป็น None
             if not (up_file and f_name and phone and uni and affiliation):
                 st.warning("⚠️ กรุณากรอกข้อมูลให้ครบถ้วนและเลือกมหาวิทยาลัย/หน่วยงาน")
             else:
@@ -117,77 +114,87 @@ if page == "หน้าสำหรับ User":
                 except Exception as e:
                     st.error(f"เกิดข้อผิดพลาด: {e}")
 
-# --- 6. หน้าสำหรับ Admin (คงเดิมทุกฟังก์ชัน) ---
-elif page in ["หน้าสำหรับ Admin", "จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]:
+# --- 6. หน้าสำหรับ Admin (คงระบบ Login ไว้เฉพาะหน้านี้) ---
+elif page == "หน้าสำหรับ Admin":
     if not st.session_state.get('logged_in', False):
-        st.markdown(f"### 🔐 กรุณาเข้าสู่ระบบเพื่อใช้งานเมนู '{page}'")
+        st.markdown("### 🔐 กรุณาเข้าสู่ระบบสำหรับ Admin")
         u_in = st.text_input("Username")
         p_in = st.text_input("Password", type="password")
         if st.button("Sign In"):
             if u_in == "bannawit.s" and p_in == "adminjcep":
                 st.session_state.logged_in = True
-                show_message_modal("🔓 เข้าสู่ระบบสำเร็จ")
+                st.rerun()
             else:
                 st.error("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
     else:
         col_title, col_logout = st.columns([8, 1.5])
-        col_title.markdown(f"## 🖥️ {page}")
+        col_title.markdown("## 🖥️ หน้าสำหรับ Admin")
         if col_logout.button("🚪 ออกจากระบบ", type="secondary"):
             st.session_state.logged_in = False
-            show_message_modal("🚪 ออกจากระบบเรียบร้อย")
+            st.rerun()
         st.divider()
 
-        if page == "หน้าสำหรับ Admin":
-            try:
-                raw_data = sheet.get_all_values()
-                if len(raw_data) > 1:
-                    df = pd.DataFrame(raw_data[1:], columns=raw_data[0])
-                    st.markdown("### 📊 ตารางข้อมูลวารสาร")
-                    st.dataframe(df, use_container_width=True)
-                    st.write("---")
-                    col_name = "Filename" if "Filename" in df.columns else df.columns[11]
-                    file_list = df[col_name].dropna().unique().tolist()
-                    selected_file = st.selectbox("เลือกรายการ:", options=file_list, index=None, placeholder="ค้นหาชื่อไฟล์...")
-                    
-                    if selected_file:
-                        row_info = df[df[col_name] == selected_file].iloc[0]
-                        c1, c2 = st.columns(2)
-                        with c1:
-                            f_path = os.path.join("uploaded_journals", str(selected_file))
-                            if os.path.exists(f_path):
-                                with open(f_path, "rb") as f:
-                                    st.download_button(label="💾 ดาวน์โหลดไฟล์", data=f, file_name=str(selected_file), use_container_width=True)
-                        with c2:
-                            link_val = row_info.iloc[-1]
-                            if str(link_val).startswith("http"):
-                                st.link_button(f"🔗 เปิดลิงก์ผลงาน", str(link_val), use_container_width=True)
-                else:
-                    st.info("ℹ️ ยังไม่มีข้อมูล")
-            except Exception as e:
-                st.error(f"เกิดข้อผิดพลาด: {e}")
-
-        else:
-            target_sheet = sheet_uni if page == "จัดการรายชื่อมหาวิทยาลัย" else sheet_agency
-            label = "มหาวิทยาลัย" if page == "จัดการรายชื่อมหาวิทยาลัย" else "หน่วยงาน"
-            
-            st.subheader(f"➕ เพิ่มข้อมูล{label}")
-            with st.form(f"add_form_{page}", clear_on_submit=True):
-                new_name = st.text_input(f"ชื่อ{label}:")
-                new_addr = st.text_area("ที่อยู่:")
-                new_contact = st.text_input("ข้อมูลติดต่อ (เบอร์โทร):")
-                new_mail = st.text_input("E-mail:")
+        try:
+            raw_data = sheet.get_all_values()
+            if len(raw_data) > 1:
+                df = pd.DataFrame(raw_data[1:], columns=raw_data[0])
+                st.markdown("### 📊 ตารางข้อมูลวารสาร")
+                st.dataframe(df, use_container_width=True)
+                st.write("---")
+                col_name = "Filename" if "Filename" in df.columns else df.columns[11]
+                file_list = df[col_name].dropna().unique().tolist()
+                selected_file = st.selectbox("เลือกรายการ:", options=file_list, index=None, placeholder="ค้นหาชื่อไฟล์...")
                 
-                if st.form_submit_button(f"🚀 บันทึกข้อมูล{label}", type="primary"):
-                    if new_name:
-                        target_sheet.append_row([new_name, new_addr, new_contact, new_mail])
-                        show_message_modal("✅ เพิ่มข้อมูลเรียบร้อย")
-                    else:
-                        st.warning(f"⚠️ กรุณากรอกชื่อ{label}")
-            
-            st.write("---")
-            st.write(f"📂 รายชื่อปัจจุบัน:")
-            data_list = target_sheet.get_all_values()
-            if len(data_list) > 1:
-                st.table(pd.DataFrame(data_list[1:], columns=data_list[0]))
+                if selected_file:
+                    row_info = df[df[col_name] == selected_file].iloc[0]
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        f_path = os.path.join("uploaded_journals", str(selected_file))
+                        if os.path.exists(f_path):
+                            with open(f_path, "rb") as f:
+                                st.download_button(label="💾 ดาวน์โหลดไฟล์", data=f, file_name=str(selected_file), use_container_width=True)
+                    with c2:
+                        link_val = row_info.iloc[-1]
+                        if str(link_val).startswith("http"):
+                            st.link_button(f"🔗 เปิดลิงก์ผลงาน", str(link_val), use_container_width=True)
+            else:
+                st.info("ℹ️ ยังไม่มีข้อมูล")
+        except Exception as e:
+            st.error(f"เกิดข้อผิดพลาด: {e}")
+
+# --- 7. หน้าจัดการรายชื่อ (ปลดล็อก Login ออกแล้ว) ---
+elif page in ["จัดการรายชื่อมหาวิทยาลัย", "จัดการรายชื่อหน่วยงาน"]:
+    target_sheet = sheet_uni if page == "จัดการรายชื่อมหาวิทยาลัย" else sheet_agency
+    label = "มหาวิทยาลัย" if page == "จัดการรายชื่อมหาวิทยาลัย" else "หน่วยงาน"
+    
+    st.subheader(f"➕ เพิ่มข้อมูล{label}")
+    st.info(f"💡 คุณสามารถเพิ่มรายชื่อ{label}ใหม่ได้ที่นี่ เพื่อให้มีตัวเลือกในหน้าส่งวารสาร")
+    
+    with st.form(f"add_form_{page}", clear_on_submit=True):
+        new_name = st.text_input(f"ชื่อ{label}:")
+        new_addr = st.text_area("ที่อยู่:")
+        new_contact = st.text_input("ข้อมูลติดต่อ (เบอร์โทร):")
+        new_mail = st.text_input("E-mail:")
+        
+        if st.form_submit_button(f"🚀 บันทึกข้อมูล{label}", type="primary"):
+            if new_name:
+                try:
+                    target_sheet.append_row([new_name, new_addr, new_contact, new_mail])
+                    show_message_modal(f"✅ เพิ่มข้อมูล{label}เรียบร้อย")
+                except Exception as e:
+                    st.error(f"ไม่สามารถบันทึกได้: {e}")
+            else:
+                st.warning(f"⚠️ กรุณากรอกชื่อ{label}")
+    
+    st.write("---")
+    st.write(f"📂 รายชื่อปัจจุบัน:")
+    try:
+        data_list = target_sheet.get_all_values()
+        if len(data_list) > 1:
+            st.table(pd.DataFrame(data_list[1:], columns=data_list[0]))
+        else:
+            st.info("ยังไม่มีข้อมูลรายชื่อในระบบ")
+    except Exception as e:
+        st.error(f"ไม่สามารถดึงข้อมูลได้: {e}")
 
 st.markdown('<div class="footer">Update by Bannawit S. (OCE - RMUTK)</div>', unsafe_allow_html=True)
