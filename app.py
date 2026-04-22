@@ -190,4 +190,4 @@ elif page == "หน้าสำหรับ Admin":
         except Exception as e:
             st.error(f"เกิดข้อผิดพลาดในการโหลดข้อมูล: {e}")
 
-st.markdown('<div class="footer">Update by OCE - RMUTK</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Create by OCE - RMUTK</div>', unsafe_allow_html=True)
